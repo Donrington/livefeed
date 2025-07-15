@@ -1,0 +1,57 @@
+
+# ==============================================================================
+# 10. HOW TO RUN WITH YOUR EXISTING STRUCTURE
+# ==============================================================================
+
+execution_steps = """
+# STEP-BY-STEP SETUP
+
+1. Add streaming config to live_feed/settings.py (see SETTINGS_ADDITIONS above)
+
+2. Create the streaming package files:
+   - streaming/__init__.py
+   - streaming/config.py
+   - streaming/base.py  
+   - streaming/publisher.py
+   - streaming/receiver.py
+
+3. Add StreamMetrics model to app/models.py
+
+4. Add views to app/views.py
+
+5. Update app/urls.py
+
+6. Run migrations:
+   cd live_feed
+   python manage.py makemigrations app
+   python manage.py migrate
+
+7. Start components (separate terminals):
+
+   # Terminal 1: Django server
+   python manage.py runserver 8000
+
+   # Terminal 2: Publisher  
+   python streaming/publisher.py
+
+   # Terminal 3: Receiver
+   python streaming/receiver.py
+
+8. View results:
+   Dashboard: http://localhost:8000
+   Direct stream: http://localhost:8888/mystream/index.m3u8
+
+# Your MediaMTX runs separately as usual
+"""
+
+# ==============================================================================
+# 11. UPDATE requirements.txt
+# ==============================================================================
+
+updated_requirements = """
+# Add these to your existing requirements.txt
+
+opencv-python>=4.8.0
+numpy>=1.24.0
+requests>=2.31.0
+"""
