@@ -64,27 +64,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-
-# Streaming Configuration
-STREAMING_CONFIG = {
-    'DJANGO_SERVER_URL': 'http://localhost:8000',
-    'MEDIAMTX_RTSP_URL': 'rtsp://localhost:8554',
-    'MEDIAMTX_HLS_URL': 'http://localhost:8888',
-    'STREAM_NAME': 'mystream',
-    'CAMERA_INDEX': 0,
-    
-    # Video Quality Settings
-    'VIDEO_WIDTH': 1280,
-    'VIDEO_HEIGHT': 720,
-    'VIDEO_FPS': 30,
-    'VIDEO_BITRATE': '1200k',
-    
-    # Latency Optimization
-    'GOP_SIZE': 15,
-    'FFMPEG_PRESET': 'ultrafast',
-    'FFMPEG_TUNE': 'zerolatency',
-}
-
 ROOT_URLCONF = 'live_feed.urls'
 
 STATIC_URL = '/static/'

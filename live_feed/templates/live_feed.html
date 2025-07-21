@@ -1,32 +1,53 @@
+<!-- Create this file: simple_viewer.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Live Feed</title>
+    <title>Simple Stream Viewer</title>
+    <style>
+        body { background: #000; color: white; font-family: Arial; margin: 20px; }
+        video { width: 100%; max-width: 800px; border: 2px solid #333; }
+        .info { background: #222; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    </style>
 </head>
 <body>
-  <h1>Live Surveillance</h1>
-  <video id="videoElement" controls autoplay playsinline width="100%"></video>
-
-  <!-- HLS.js -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script>
-    const video = document.getElementById('videoElement');
-    const url   = 'http://localhost:8888/mystream/index.m3u8';
-
-    if (Hls.isSupported()) {
-      const hls = new Hls({ 
-        maxLiveSyncPlaybackRate: 1.5 
-      });
-      hls.loadSource(url);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = url;
-      video.addEventListener('loadedmetadata', () => video.play());
-    } else {
-      alert('HLS not supported');
-    }
-  </script>
+    <h1>Simple Stream Viewer</h1>
+    
+    <div class="info">
+        <h3>Stream URLs to try:</h3>
+        <p>🔗 HLS: <a href="http://localhost:8888/zerolatency/index.m3u8" target="_blank">http://localhost:8888/zerolatency/index.m3u8</a></p>
+        <p>🔗 RTSP: rtsp://localhost:8554/zerolatency (use VLC)</p>
+        <p>🔗 WebRTC: http://localhost:8889/zerolatency</p>
+    </div>
+    
+    <video id="video" controls autoplay muted></video>
+    
+    <script>
+        const video = document.getElementById('video');
+        
+        // Try HLS stream
+        const hlsUrl = 'http://localhost:8888/zerolatency/index.m3u8';
+        
+        console.log('Trying HLS:', hlsUrl);
+        
+        if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            // Native support (Safari)
+            video.src = hlsUrl;
+        } else {
+            // Try to load HLS.js
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+            script.onload = () => {
+                if (Hls.isSupported()) {
+                    const hls = new Hls();
+                    hls.loadSource(hlsUrl);
+                    hls.attachMedia(video);
+                } else {
+                    console.error('HLS not supported');
+                    document.body.innerHTML += '<p style="color: red;">HLS not supported. Use VLC with: rtsp://localhost:8554/zerolatency</p>';
+                }
+            };
+            document.head.appendChild(script);
+        }
+    </script>
 </body>
 </html>
