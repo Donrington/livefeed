@@ -5,6 +5,7 @@ import time
 import signal
 import atexit
 import socket
+import os
 from datetime import datetime
 
 class ZeroLatencyPublisher:
@@ -16,9 +17,11 @@ class ZeroLatencyPublisher:
         self.target_fps = 30
         self.bitrate = '800k'
         self.rtsp_url = "rtsp://localhost:8554/zerolatency"
+        self.mediamtx_path = r"C:\Users\Windows\Desktop\MyProjects\mediamtx\mediamtx.exe"
         
         self.cap = None
         self.ffmpeg_process = None
+        self.mediamtx_process = None
         self.fps_counter = 0
         self.fps_timer = time.time()
         self.current_fps = 0
@@ -39,6 +42,50 @@ class ZeroLatencyPublisher:
             return result == 0
         except:
             return False
+    
+    def start_mediamtx(self):
+        if not os.path.exists(self.mediamtx_path):
+            self.log(f"MediaMTX executable not found at {self.mediamtx_path}")
+            return False
+            
+        try:
+            self.log("Starting MediaMTX...")
+            self.mediamtx_process = subprocess.Popen(
+                [self.mediamtx_path],
+                cwd=os.path.dirname(self.mediamtx_path),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            
+            # Wait for MediaMTX to start up
+            for i in range(10):
+                time.sleep(1)
+                if self.check_mediamtx():
+                    self.log("MediaMTX started successfully")
+                    return True
+                self.log(f"Waiting for MediaMTX to start... ({i+1}/10)")
+            
+            self.log("MediaMTX failed to start within 10 seconds")
+            return False
+            
+        except Exception as e:
+            self.log(f"Error starting MediaMTX: {e}")
+            return False
+    
+    def stop_mediamtx(self):
+        if self.mediamtx_process:
+            try:
+                self.log("Stopping MediaMTX...")
+                self.mediamtx_process.terminate()
+                self.mediamtx_process.wait(timeout=5)
+                self.log("MediaMTX stopped")
+            except subprocess.TimeoutExpired:
+                self.log("Force killing MediaMTX...")
+                self.mediamtx_process.kill()
+            except Exception as e:
+                self.log(f"Error stopping MediaMTX: {e}")
+            finally:
+                self.mediamtx_process = None
     
     def setup_camera(self):
         self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
@@ -83,8 +130,10 @@ class ZeroLatencyPublisher:
             
     def start(self):
         if not self.check_mediamtx():
-            self.log("MediaMTX not running on port 8554")
-            return
+            self.log("MediaMTX not running, attempting to start...")
+            if not self.start_mediamtx():
+                self.log("Failed to start MediaMTX")
+                return
             
         self.setup_camera()
         self.setup_ffmpeg()
@@ -125,6 +174,7 @@ class ZeroLatencyPublisher:
             self.cap.release()
             cv2.destroyAllWindows()
             
+        self.stop_mediamtx()
         self.log("Stopped")
 
 if __name__ == "__main__":

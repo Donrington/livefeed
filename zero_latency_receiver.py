@@ -3,6 +3,7 @@ import os
 import cv2
 import time
 import re
+import pytesseract
 from datetime import datetime
 
 class ZeroLatencyReceiver:
@@ -25,28 +26,67 @@ class ZeroLatencyReceiver:
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         
     def extract_publisher_timestamp(self, frame):
-        """Extract publisher timestamp from frame overlay"""
+        """Extract publisher timestamp from frame overlay and calculate actual latency"""
         try:
-            # Convert frame to grayscale for OCR-like processing
+            # Convert frame to grayscale for better text detection
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
             # Look for timestamp pattern in top-left area where publisher adds it
             roi = gray[10:30, 0:200]  # Region where "PUB: HH:MM:SS.mmm" appears
             
-            # This is a simplified approach - in production you'd use proper OCR
-            # For now, we'll calculate latency based on frame processing time
+            # Try to extract timestamp using simple pattern matching
+            # Convert ROI to string representation for pattern matching
+            
+            try:
+                text = pytesseract.image_to_string(roi, config='--psm 8 -c tessedit_char_whitelist=0123456789:PUB. ')
+                
+                # Look for pattern "PUB: HH:MM:SS.mmm"
+                timestamp_match = re.search(r'PUB:\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})', text)
+                
+                if timestamp_match:
+                    pub_hour = int(timestamp_match.group(1))
+                    pub_minute = int(timestamp_match.group(2))
+                    pub_second = int(timestamp_match.group(3))
+                    pub_millisecond = int(timestamp_match.group(4))
+                    
+                    # Convert publisher timestamp to seconds
+                    pub_time_seconds = pub_hour * 3600 + pub_minute * 60 + pub_second + pub_millisecond / 1000
+                    
+                    # Get current time
+                    current_time = datetime.now()
+                    current_time_seconds = current_time.hour * 3600 + current_time.minute * 60 + current_time.second + current_time.microsecond / 1000000
+                    
+                    # Calculate latency (handle day rollover)
+                    latency_seconds = current_time_seconds - pub_time_seconds
+                    if latency_seconds < 0:
+                        latency_seconds += 86400  # Add 24 hours if crossed midnight
+                    
+                    self.latency_ms = latency_seconds * 1000
+                    return
+                    
+            except ImportError:
+                # Fallback if pytesseract not available
+                pass
+            
+            # Fallback: Calculate based on frame arrival timing
             current_time = time.time()
             if hasattr(self, 'last_frame_time'):
-                processing_delay = (current_time - self.last_frame_time) * 1000
-                # Estimate total latency (processing + network + encoding)
-                self.latency_ms = processing_delay + 30  # Add estimated network/encoding delay
+                frame_interval = current_time - self.last_frame_time
+                # Estimate latency based on expected frame rate (assume 30 FPS = 33.33ms per frame)
+                expected_interval = 1.0 / 30.0  # 30 FPS
+                if frame_interval > expected_interval:
+                    # Frame is late, add to latency estimate
+                    self.latency_ms = (frame_interval - expected_interval) * 1000 + 20  # Base network latency
+                else:
+                    self.latency_ms = 20  # Minimum estimated latency
             else:
-                self.latency_ms = 50  # Initial estimate
+                self.latency_ms = 20  # Initial estimate
                 
             self.last_frame_time = current_time
             
-        except:
-            self.latency_ms = 50  # Fallback
+        except Exception as e:
+            # Fallback latency calculation
+            self.latency_ms = 25
             
     def add_receiver_overlay(self, frame):
         current_time = datetime.now()

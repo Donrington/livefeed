@@ -1,39 +1,95 @@
-<!-- Create this file: simple_viewer.html -->
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Stream Viewer</title>
+    <title>Live Feed Viewer</title>
     <style>
-        body { background: #000; color: white; font-family: Arial; margin: 20px; }
-        video { width: 100%; max-width: 800px; border: 2px solid #333; }
-        .info { background: #222; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        body { 
+            background: #000; 
+            color: white; 
+            font-family: Arial; 
+            margin: 20px;
+            text-align: center;
+        }
+        video { 
+            width: 100%; 
+            max-width: 800px; 
+            border: 2px solid #333; 
+            margin: 20px 0;
+        }
+        .info { 
+            background: #222; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 5px; 
+            display: inline-block;
+            text-align: left;
+        }
+        .status {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
-    <h1>Simple Stream Viewer</h1>
+    <h1>🎥 Live Feed Viewer</h1>
+    
+    <div class="status" id="status">
+        Status: Checking stream...
+    </div>
     
     <div class="info">
-        <h3>Stream URLs to try:</h3>
-        <p>🔗 HLS: <a href="http://localhost:8888/zerolatency/index.m3u8" target="_blank">http://localhost:8888/zerolatency/index.m3u8</a></p>
-        <p>🔗 RTSP: rtsp://localhost:8554/zerolatency (use VLC)</p>
-        <p>🔗 WebRTC: http://localhost:8889/zerolatency</p>
+        <h3>📡 Available Stream URLs:</h3>
+        <p>🔗 HLS: <code>http://localhost:8888/zerolatency/index.m3u8</code></p>
+        <p>🔗 RTSP: <code>rtsp://localhost:8554/zerolatency</code> (use VLC)</p>
+        <p>🔗 WebRTC: <code>http://localhost:8889/zerolatency</code></p>
     </div>
     
     <video id="video" controls autoplay muted></video>
     
+    <div class="info">
+        <h3>📝 Instructions:</h3>
+        <p>1. Run <code>python zero_latency_publisher.py</code> to start publishing</p>
+        <p>2. Run <code>python zero_latency_receiver.py</code> in another terminal for receiver display</p>
+        <p>3. This web page shows the HLS stream from MediaMTX</p>
+    </div>
+    
     <script>
         const video = document.getElementById('video');
+        const statusDiv = document.getElementById('status');
+        
+        // Check stream status
+        fetch('/api/status/')
+            .then(response => response.json())
+            .then(data => {
+                statusDiv.innerHTML = 'Status: ✅ Stream URLs configured';
+                console.log('Stream URLs:', data);
+            })
+            .catch(error => {
+                statusDiv.innerHTML = 'Status: ❌ Error checking stream status';
+                console.error('Error:', error);
+            });
         
         // Try HLS stream
         const hlsUrl = 'http://localhost:8888/zerolatency/index.m3u8';
         
-        console.log('Trying HLS:', hlsUrl);
+        console.log('Attempting HLS stream:', hlsUrl);
         
         if (video.canPlayType('application/vnd.apple.mpegurl')) {
             // Native support (Safari)
             video.src = hlsUrl;
+            video.addEventListener('loadstart', () => {
+                statusDiv.innerHTML = 'Status: 🔄 Loading HLS stream...';
+            });
+            video.addEventListener('canplay', () => {
+                statusDiv.innerHTML = 'Status: ▶️ HLS stream ready';
+            });
+            video.addEventListener('error', () => {
+                statusDiv.innerHTML = 'Status: ❌ HLS stream error - check if publisher is running';
+            });
         } else {
-            // Try to load HLS.js
+            // Try to load HLS.js for other browsers
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
             script.onload = () => {
@@ -41,10 +97,21 @@
                     const hls = new Hls();
                     hls.loadSource(hlsUrl);
                     hls.attachMedia(video);
+                    
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        statusDiv.innerHTML = 'Status: ▶️ HLS stream loaded via HLS.js';
+                    });
+                    
+                    hls.on(Hls.Events.ERROR, (event, data) => {
+                        statusDiv.innerHTML = 'Status: ❌ HLS error - check if publisher is running';
+                        console.error('HLS error:', data);
+                    });
                 } else {
-                    console.error('HLS not supported');
-                    document.body.innerHTML += '<p style="color: red;">HLS not supported. Use VLC with: rtsp://localhost:8554/zerolatency</p>';
+                    statusDiv.innerHTML = 'Status: ❌ HLS not supported - use VLC with RTSP URL';
                 }
+            };
+            script.onerror = () => {
+                statusDiv.innerHTML = 'Status: ❌ Failed to load HLS.js';
             };
             document.head.appendChild(script);
         }
