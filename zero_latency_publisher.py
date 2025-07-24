@@ -6,10 +6,11 @@ import signal
 import atexit
 import socket
 import os
+import argparse
 from datetime import datetime
 
 class ZeroLatencyPublisher:
-    def __init__(self):
+    def __init__(self, mediamtx_path):
         self.running = False
         self.camera_index = 0
         self.width = 640
@@ -17,7 +18,7 @@ class ZeroLatencyPublisher:
         self.target_fps = 30
         self.bitrate = '800k'
         self.rtsp_url = "rtsp://localhost:8554/zerolatency"
-        self.mediamtx_path = r"C:\Users\Windows\Desktop\MyProjects\mediamtx\mediamtx.exe"
+        self.mediamtx_path = mediamtx_path
         
         self.cap = None
         self.ffmpeg_process = None
@@ -177,6 +178,45 @@ class ZeroLatencyPublisher:
         self.stop_mediamtx()
         self.log("Stopped")
 
-if __name__ == "__main__":
-    publisher = ZeroLatencyPublisher()
+def main():
+    parser = argparse.ArgumentParser(description='Zero Latency RTSP Publisher')
+    parser.add_argument('--mediamtx-path', '-m', 
+                       required=True,
+                       help='Path to the MediaMTX executable')
+    parser.add_argument('--camera-index', '-c', 
+                       type=int, 
+                       default=0,
+                       help='Camera index to use (default: 0)')
+    parser.add_argument('--width', '-w', 
+                       type=int, 
+                       default=640,
+                       help='Video width (default: 640)')
+    parser.add_argument('--height', '-ht', 
+                       type=int, 
+                       default=480,
+                       help='Video height (default: 480)')
+    parser.add_argument('--fps', '-f', 
+                       type=int, 
+                       default=30,
+                       help='Target FPS (default: 30)')
+    parser.add_argument('--bitrate', '-b', 
+                       default='800k',
+                       help='Video bitrate (default: 800k)')
+    parser.add_argument('--rtsp-url', '-u', 
+                       default='rtsp://localhost:8554/zerolatency',
+                       help='RTSP URL to publish to (default: rtsp://localhost:8554/zerolatency)')
+    
+    args = parser.parse_args()
+    
+    publisher = ZeroLatencyPublisher(args.mediamtx_path)
+    publisher.camera_index = args.camera_index
+    publisher.width = args.width
+    publisher.height = args.height
+    publisher.target_fps = args.fps
+    publisher.bitrate = args.bitrate
+    publisher.rtsp_url = args.rtsp_url
+    
     publisher.start()
+
+if __name__ == "__main__":
+    main()
