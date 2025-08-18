@@ -1,73 +1,382 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Feed Viewer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { 
-            background: #000; 
-            color: white; 
-            font-family: Arial; 
-            margin: 20px;
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --dark-glass: rgba(0, 0, 0, 0.2);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.8);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            gap: 2rem;
+            grid-template-columns: 1fr;
+        }
+
+        .header {
             text-align: center;
+            margin-bottom: 1rem;
         }
-        video { 
-            width: 100%; 
-            max-width: 800px; 
-            border: 2px solid #333; 
-            margin: 20px 0;
+
+        .title {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            animation: fadeInUp 0.8s ease-out;
         }
-        .info { 
-            background: #222; 
-            padding: 15px; 
-            margin: 10px 0; 
-            border-radius: 5px; 
-            display: inline-block;
-            text-align: left;
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            font-weight: 300;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
         }
-        .status {
-            background: #333;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .status-card {
+            background: var(--dark-glass);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--warning);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.success {
+            background: var(--success);
+        }
+
+        .status-dot.error {
+            background: var(--error);
+        }
+
+        .video-container {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            background: var(--dark-glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            animation: fadeInUp 0.8s ease-out 0.6s both;
+        }
+
+        .video-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--accent-gradient);
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        video {
+            width: 100%;
+            height: auto;
+            max-height: 60vh;
+            object-fit: cover;
+            position: relative;
+            z-index: 2;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .info-card {
+            animation: fadeInUp 0.8s ease-out 0.8s both;
+        }
+
+        .card-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+        }
+
+        .url-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .url-item {
+            background: var(--dark-glass);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            transition: all 0.3s ease;
+        }
+
+        .url-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        .url-label {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .url-code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            color: #64ffda;
+            border: 1px solid rgba(100, 255, 218, 0.3);
+            word-break: break-all;
+        }
+
+        .instruction-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .instruction-item {
+            background: var(--dark-glass);
+            padding: 1rem;
+            border-radius: 12px;
+            border-left: 4px solid;
+            border-image: var(--accent-gradient) 1;
+            transition: all 0.3s ease;
+        }
+
+        .instruction-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        .instruction-step {
+            font-weight: 600;
+            color: #64ffda;
+            margin-bottom: 0.3rem;
+        }
+
+        .instruction-text {
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .instruction-code {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: #ff9500;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+                gap: 1.5rem;
+            }
+            
+            .glass-card {
+                padding: 1.5rem;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>🎥 Live Feed Viewer</h1>
-    
-    <div class="status" id="status">
-        Status: Checking stream...
-    </div>
-    
-    <div class="info">
-        <h3>📡 Available Stream URLs:</h3>
-        <p>🔗 HLS: <code>http://localhost:8888/zerolatency/index.m3u8</code></p>
-        <p>🔗 RTSP: <code>rtsp://localhost:8554/zerolatency</code> (use VLC)</p>
-        <p>🔗 WebRTC: <code>http://localhost:8889/zerolatency</code></p>
-    </div>
-    
-    <video id="video" controls autoplay muted></video>
-    
-    <div class="info">
-        <h3>📝 Instructions:</h3>
-        <p>1. Run <code>python zero_latency_publisher.py</code> to start publishing</p>
-        <p>2. Run <code>python zero_latency_receiver.py</code> in another terminal for receiver display</p>
-        <p>3. This web page shows the HLS stream from MediaMTX</p>
+    <div class="container">
+        <header class="header">
+            <h1 class="title">Live Feed Viewer</h1>
+            <p class="subtitle">Ultra-low latency streaming interface</p>
+        </header>
+        
+        <div class="status-card">
+            <div class="status-indicator" id="status">
+                <span class="status-dot"></span>
+                <span>Checking stream status...</span>
+            </div>
+        </div>
+        
+        <div class="video-container">
+            <video id="video" controls autoplay muted></video>
+        </div>
+        
+        <div class="info-grid">
+            <div class="glass-card info-card">
+                <h3 class="card-title">
+                    <span class="card-icon">📡</span>
+                    Available Stream URLs
+                </h3>
+                <ul class="url-list">
+                    <li class="url-item">
+                        <div class="url-label">🎬 HLS Stream</div>
+                        <code class="url-code">http://localhost:8888/zerolatency/index.m3u8</code>
+                    </li>
+                    <li class="url-item">
+                        <div class="url-label">📺 RTSP Stream</div>
+                        <code class="url-code">rtsp://localhost:8554/zerolatency</code>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">Use with VLC Player</div>
+                    </li>
+                    <li class="url-item">
+                        <div class="url-label">🌐 WebRTC Stream</div>
+                        <code class="url-code">http://localhost:8889/zerolatency</code>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="glass-card info-card">
+                <h3 class="card-title">
+                    <span class="card-icon">📝</span>
+                    Setup Instructions
+                </h3>
+                <ul class="instruction-list">
+                    <li class="instruction-item">
+                        <div class="instruction-step">Step 1</div>
+                        <div class="instruction-text">Start the publisher: <code class="instruction-code">python zero_latency_publisher.py</code></div>
+                    </li>
+                    <li class="instruction-item">
+                        <div class="instruction-step">Step 2</div>
+                        <div class="instruction-text">Run receiver in new terminal: <code class="instruction-code">python zero_latency_receiver.py</code></div>
+                    </li>
+                    <li class="instruction-item">
+                        <div class="instruction-step">Step 3</div>
+                        <div class="instruction-text">This web interface displays the HLS stream from MediaMTX</div>
+                    </li>
+                </ul>
+            </div>
+        </div>
     </div>
     
     <script>
         const video = document.getElementById('video');
         const statusDiv = document.getElementById('status');
+        const statusDot = statusDiv.querySelector('.status-dot');
+        const statusText = statusDiv.querySelector('span:last-child');
+        
+        function updateStatus(message, type = 'warning') {
+            statusText.textContent = message;
+            statusDot.className = `status-dot ${type}`;
+        }
         
         // Check stream status
         fetch('/api/status/')
             .then(response => response.json())
             .then(data => {
-                statusDiv.innerHTML = 'Status: ✅ Stream URLs configured';
+                updateStatus('Stream URLs configured', 'success');
                 console.log('Stream URLs:', data);
             })
             .catch(error => {
-                statusDiv.innerHTML = 'Status: ❌ Error checking stream status';
+                updateStatus('Error checking stream status', 'error');
                 console.error('Error:', error);
             });
         
@@ -80,13 +389,13 @@
             // Native support (Safari)
             video.src = hlsUrl;
             video.addEventListener('loadstart', () => {
-                statusDiv.innerHTML = 'Status: 🔄 Loading HLS stream...';
+                updateStatus('Loading HLS stream...', 'warning');
             });
             video.addEventListener('canplay', () => {
-                statusDiv.innerHTML = 'Status: ▶️ HLS stream ready';
+                updateStatus('HLS stream ready', 'success');
             });
             video.addEventListener('error', () => {
-                statusDiv.innerHTML = 'Status: ❌ HLS stream error - check if publisher is running';
+                updateStatus('HLS stream error - check if publisher is running', 'error');
             });
         } else {
             // Try to load HLS.js for other browsers
@@ -99,19 +408,19 @@
                     hls.attachMedia(video);
                     
                     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        statusDiv.innerHTML = 'Status: ▶️ HLS stream loaded via HLS.js';
+                        updateStatus('HLS stream loaded via HLS.js', 'success');
                     });
                     
                     hls.on(Hls.Events.ERROR, (event, data) => {
-                        statusDiv.innerHTML = 'Status: ❌ HLS error - check if publisher is running';
+                        updateStatus('HLS error - check if publisher is running', 'error');
                         console.error('HLS error:', data);
                     });
                 } else {
-                    statusDiv.innerHTML = 'Status: ❌ HLS not supported - use VLC with RTSP URL';
+                    updateStatus('HLS not supported - use VLC with RTSP URL', 'error');
                 }
             };
             script.onerror = () => {
-                statusDiv.innerHTML = 'Status: ❌ Failed to load HLS.js';
+                updateStatus('Failed to load HLS.js', 'error');
             };
             document.head.appendChild(script);
         }

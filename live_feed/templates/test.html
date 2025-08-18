@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Vision Pro - AI Surveillance System</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ffffff;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Background Effects */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -2;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(0, 255, 136, 0.8);
+            border-radius: 50%;
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        /* Header */
+        .header {
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 255, 136, 0.3);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo h1 {
+            background: linear-gradient(45deg, #00ff88, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online {
+            background: #00ff88;
+        }
+
+        .status-dot.recording {
+            background: #ff4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+            padding: 2rem;
+            min-height: calc(100vh - 80px);
+        }
+
+        /* Video Section */
+        .video-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .video-container {
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-wrapper {
+            position: relative;
+            aspect-ratio: 16/9;
+            background: #000;
+        }
+
+        .video-frame {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0, 255, 136, 0.3);
+            border-top: 3px solid #00ff88;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .video-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+            padding: 2rem 1rem 1rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .video-wrapper:hover .video-overlay {
+            opacity: 1;
+        }
+
+        .video-controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .video-btn {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 136, 0.5);
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .video-btn:hover {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+        }
+
+        /* Detection boxes */
+        .detection-box {
+            position: absolute;
+            border: 2px solid #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            pointer-events: none;
+            animation: detectFade 3s ease-out;
+        }
+
+        .detection-label {
+            position: absolute;
+            top: -25px;
+            left: 0;
+            background: #00ff88;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        @keyframes detectFade {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Analytics Panel */
+        .analytics-panel {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+
+        .analytics-card {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .analytics-title {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 0.5rem;
+        }
+
+        .analytics-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #00ff88;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .settings-header {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 212, 255, 0.1));
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .settings-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .settings-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+        }
+
+        .settings-content {
+            padding: 1.5rem;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .settings-section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #00ff88;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .setting-description {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            width: 50px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #00ff88;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(26px);
+        }
+
+        /* Slider */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            min-width: 150px;
+        }
+
+        .slider {
+            flex: 1;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00ff88;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00ff88;
+            cursor: pointer;
+            border: none;
+        }
+
+        .slider-value {
+            font-size: 0.9rem;
+            color: #00ff88;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        /* Dropdown */
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 120px;
+        }
+
+        .dropdown-button:hover {
+            border-color: #00ff88;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 6px;
+            min-width: 150px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .dropdown-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(135deg, #00ff88, #00d4ff);
+            color: #000;
+        }
+
+        .action-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.3);
+        }
+
+        .action-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .action-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .settings-panel {
+                order: -1;
+            }
+            
+            .analytics-panel {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .status-bar {
+                gap: 1rem;
+            }
+            
+            .main-layout {
+                padding: 1rem;
+            }
+            
+            .analytics-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Elements -->
+    <div class="bg-grid"></div>
+    <div class="particles" id="particles"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <h1>Neural Vision Pro</h1>
+        </div>
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot online"></div>
+                <span id="connectionText">Connected</span>
+            </div>
+            <div class="status-item">
+                <div class="status-dot recording"></div>
+                <span id="recordingText">Recording</span>
+            </div>
+            <div class="status-item">
+                <span id="currentTime">--:--:--</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Video Section -->
+        <div class="video-section">
+            <div class="video-container">
+                <div class="video-wrapper">
+                    <div class="loading-overlay" id="loadingOverlay">
+                        <div class="loading-spinner"></div>
+                        <div>Connecting to surveillance feed...</div>
+                    </div>
+                    <img id="video-frame" class="video-frame" alt="Live Video Feed" />
+                    <div class="video-overlay">
+                        <div class="video-controls">
+                            <button class="video-btn" id="fullscreenBtn">
+                                <span>⛶</span> Fullscreen
+                            </button>
+                            <button class="video-btn" id="snapshotBtn">
+                                <span>📷</span> Snapshot
+                            </button>
+                            <button class="video-btn" id="recordBtn">
+                                <span>●</span> Record
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Panel -->
+            <div class="analytics-panel">
+                <div class="analytics-card">
+                    <div class="analytics-title">Stream Quality</div>
+                    <div class="analytics-value" id="streamQuality">1080p</div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-title">Frame Rate</div>
+                    <div class="analytics-value" id="frameRate">30 FPS</div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-title">Latency</div>
+                    <div class="analytics-value" id="latency">125ms</div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-title">Detections</div>
+                    <div class="analytics-value" id="detectionCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="settings-panel">
+            <div class="settings-header">
+                <div class="settings-title">Camera Settings</div>
+                <div class="settings-subtitle">Configure surveillance parameters</div>
+            </div>
+            <div class="settings-content">
+                <!-- Video Settings -->
+                <div class="settings-section">
+                    <div class="section-title">
+                        <span>🎥</span> Video Configuration
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Resolution</div>
+                            <div class="setting-description">Video stream resolution</div>
+                        </div>
+                        <div class="dropdown">
+                            <button class="dropdown-button" id="resolutionDropdown">
+                                <span id="resolutionValue">1080p</span>
+                                <span>▼</span>
+                            </button>
+                            <div class="dropdown-menu" id="resolutionMenu">
+                                <div class="dropdown-item" data-value="4K">4K (2160p)</div>
+                                <div class="dropdown-item" data-value="1080p">1080p</div>
+                                <div class="dropdown-item" data-value="720p">720p</div>
+                                <div class="dropdown-item" data-value="480p">480p</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Frame Rate</div>
+                            <div class="setting-description">Frames per second</div>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="frameRateSlider" min="15" max="60" value="30">
+                            <div class="slider-value" id="frameRateValue">30 FPS</div>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Brightness</div>
+                            <div class="setting-description">Adjust video brightness</div>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="brightnessSlider" min="0" max="100" value="50">
+                            <div class="slider-value" id="brightnessValue">50%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Contrast</div>
+                            <div class="setting-description">Adjust video contrast</div>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="contrastSlider" min="0" max="100" value="50">
+                            <div class="slider-value" id="contrastValue">50%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detection Settings -->
+                <div class="settings-section">
+                    <div class="section-title">
+                        <span>🔍</span> AI Detection
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Motion Detection</div>
+                            <div class="setting-description">Detect movement in frame</div>
+                        </div>
+                        <div class="toggle-switch active" id="motionToggle"></div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Person Detection</div>
+                            <div class="setting-description">AI-powered person recognition</div>
+                        </div>
+                        <div class="toggle-switch active" id="personToggle"></div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Vehicle Detection</div>
+                            <div class="setting-description">Detect cars and vehicles</div>
+                        </div>
+                        <div class="toggle-switch" id="vehicleToggle"></div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Sensitivity</div>
+                            <div class="setting-description">Detection sensitivity level</div>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="sensitivitySlider" min="1" max="10" value="7">
+                            <div class="slider-value" id="sensitivityValue">7</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recording Settings -->
+                <div class="settings-section">
+                    <div class="section-title">
+                        <span>📹</span> Recording
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Auto Recording</div>
+                            <div class="setting-description">Record on motion detection</div>
+                        </div>
+                        <div class="toggle-switch active" id="autoRecordToggle"></div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Quality</div>
+                            <div class="setting-description">Recording quality</div>
+                        </div>
+                        <div class="dropdown">
+                            <button class="dropdown-button" id="qualityDropdown">
+                                <span id="qualityValue">High</span>
+                                <span>▼</span>
+                            </button>
+                            <div class="dropdown-menu" id="qualityMenu">
+                                <div class="dropdown-item" data-value="Ultra">Ultra</div>
+                                <div class="dropdown-item" data-value="High">High</div>
+                                <div class="dropdown-item" data-value="Medium">Medium</div>
+                                <div class="dropdown-item" data-value="Low">Low</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="action-btn secondary" id="resetBtn">Reset</button>
+                    <button class="action-btn primary" id="saveBtn">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        const state = {
+            isConnected: false,
+            isRecording: false,
+            settings: {
+                resolution: '1080p',
+                frameRate: 30,
+                brightness: 50,
+                contrast: 50,
+                motionDetection: true,
+                personDetection: true,
+                vehicleDetection: false,
+                sensitivity: 7,
+                autoRecord: true,
+                quality: 'High'
+            },
+            stats: {
+                frameCount: 0,
+                startTime: Date.now(),
+                detectionCount: 0
+            }
+        };
+
+        // Get CSRF token from meta tag or cookie
+        function getCSRFToken() {
+            // Try to get from meta tag first
+            const metaToken = document.querySelector('meta[name="csrf-token"]');
+            if (metaToken) {
+                return metaToken.getAttribute('content');
+            }
+            
+            // Fallback to cookie
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, 10) === ('csrftoken=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(10));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Initialize particles
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // WebSocket connection with Django
+        function initializeVideoStream() {
+            const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            const socket = new WebSocket(wsScheme + '://' + window.location.host + '/ws/video_feed/');
+            
+            const videoFrame = document.getElementById('video-frame');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            
+            socket.onopen = () => {
+                console.log('WebSocket connected');
+                state.isConnected = true;
+                updateConnectionStatus();
+                
+                // Send initial settings
+                socket.send(JSON.stringify({
+                    type: 'settings_update',
+                    settings: state.settings
+                }));
+                
+                setTimeout(() => {
+                    loadingOverlay.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingOverlay.style.display = 'none';
+                    }, 300);
+                }, 1000);
+            };
+            
+            socket.onmessage = (evt) => {
+                const msg = JSON.parse(evt.data);
+                
+                if (msg.type === 'frame') {
+                    videoFrame.src = 'data:image/jpeg;base64,' + msg.data;
+                    state.stats.frameCount++;
+                    updateStats();
+                    
+                    // Apply video filters
+                    applyVideoFilters();
+                }
+                
+                if (msg.type === 'detection') {
+                    handleDetection(msg.data);
+                }
+                
+                if (msg.type === 'recording_status') {
+                    state.isRecording = msg.recording;
+                    updateRecordingStatus();
+                }
+            };
+            
+            socket.onclose = () => {
+                console.log('WebSocket disconnected');
+                state.isConnected = false;
+                updateConnectionStatus();
+                
+                // Attempt reconnection
+                setTimeout(() => {
+                    initializeVideoStream();
+                }, 3000);
+            };
+            
+            socket.onerror = (err) => {
+                console.error('WebSocket error:', err);
+                state.isConnected = false;
+                updateConnectionStatus();
+            };
+            
+            // Store socket reference
+            window.surveillanceSocket = socket;
+        }
+
+        // Update connection status
+        function updateConnectionStatus() {
+            const connectionText = document.getElementById('connectionText');
+            const statusDot = document.querySelector('.status-dot.online');
+            
+            if (state.isConnected) {
+                connectionText.textContent = 'Connected';
+                statusDot.style.background = '#00ff88';
+            } else {
+                connectionText.textContent = 'Disconnected';
+                statusDot.style.background = '#ff4444';
+            }
+        }
+
+        // Update recording status
+        function updateRecordingStatus() {
+            const recordingText = document.getElementById('recordingText');
+            const recordBtn = document.getElementById('recordBtn');
+            
+            if (state.isRecording) {
+                recordingText.textContent = 'Recording';
+                recordBtn.innerHTML = '<span>⏹</span> Stop';
+                recordBtn.style.background = 'rgba(255, 68, 68, 0 .8)';
+            } else {
+                recordingText.textContent = 'Not Recording';
+                recordBtn.innerHTML = '<span>●</span> Record';
+                recordBtn.style.background = 'rgba(0, 255, 136, 0.8)';
+            }
+        }
+        // Update stats display
+        function updateStats() {
+            const currentTime = document.getElementById('currentTime');
+            const detectionCount = document.getElementById('detectionCount');
+            const frameRate = document.getElementById('frameRate');
+            const streamQuality = document.getElementById('streamQuality');
+            
+            const elapsedTime = Math.floor((Date.now() - state.stats.startTime) / 1000);
+            const minutes = String(Math.floor(elapsedTime / 60)).padStart(2, '0');
+            const seconds = String(elapsedTime % 60).padStart(2, '0');
+            currentTime.textContent = `${minutes}:${seconds}`;
+            
+            detectionCount.textContent = state.stats.detectionCount;
+            frameRate.textContent = `${state.stats.frameCount} FPS`;
+        }
+        // Apply video filters based on settings
+        function applyVideoFilters() {
+            const videoFrame = document.getElementById('video-frame');
+            videoFrame.style.filter = `brightness(${state.settings.brightness}%) contrast(${state.settings.contrast}%)`;
+        }
+        // Handle detection boxes
+        function handleDetection(detection) {
+            const videoWrapper = document.querySelector('.video-wrapper');
+            const detectionBox = document.createElement('div');
+            detectionBox.className = 'detection-box';
+            detectionBox.style.left = `${detection.x}px`;
+            detectionBox.style.top = `${detection.y}px`;
+            detectionBox.style.width = `${detection.width}px`;
+            detectionBox.style.height = `${detection.height}px`;
+            
+            const label = document.createElement('div');
+            label.className = 'detection-label';
+            label.textContent = detection.label;
+            
+            detectionBox.appendChild(label);
+            videoWrapper.appendChild(detectionBox);
+            
+            // Remove after animation
+            setTimeout(() => {
+                videoWrapper.removeChild(detectionBox);
+            }, 3000);
+            
+            // Update stats
+            state.stats.detectionCount++;
+            updateStats();
+        }
+        // Initialize event listeners
+        function initializeEventListeners() {
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            const snapshotBtn = document.getElementById('snapshotBtn'); 
+            const recordBtn = document.getElementById('recordBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const resolutionDropdown = document.getElementById('resolutionDropdown');
+            const resolutionMenu = document.getElementById('resolutionMenu');
+            const frameRateSlider = document.getElementById('frameRateSlider');
+            const brightnessSlider = document.getElementById('brightnessSlider');
+            const contrastSlider = document.getElementById('contrastSlider');
+            const motionToggle = document.getElementById('motionToggle');
+            const personToggle = document.getElementById('personToggle');
+            const vehicleToggle = document.getElementById('vehicleToggle');
+            const sensitivitySlider = document.getElementById('sensitivitySlider');
+            const autoRecordToggle = document.getElementById('autoRecordToggle');
+            const qualityDropdown = document.getElementById('qualityDropdown');
+            const qualityMenu = document.getElementById('qualityMenu');
+            const resolutionValue = document.getElementById('resolutionValue');
+            const qualityValue = document.getElementById('qualityValue');
+            const frameRateValue = document.getElementById('frameRateValue');
+            const brightnessValue = document.getElementById('brightnessValue');
+            const contrastValue = document.getElementById('contrastValue');
+            const sensitivityValue = document.getElementById('sensitivityValue');
+            const csrfToken = getCSRFToken();
+            // Fullscreen button
+            fullscreenBtn.addEventListener('click', () => {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else {
+                    document.documentElement.requestFullscreen();
+                }
+            });
+            // Snapshot button
+            snapshotBtn.addEventListener('click', () => {
+                const videoFrame = document.getElementById('video-frame');
+                const link = document.createElement('a');
+                link.href = videoFrame.src;
+                link.download = `snapshot-${Date.now()}.jpg`;
+                link.click();
+            });
+            // Record button
+            recordBtn.addEventListener('click', () => {
+                if (state.isRecording) {
+                    window.surveillanceSocket.send(JSON.stringify({
+                        type: 'stop_recording',
+                        csrfmiddlewaretoken: csrfToken
+                    }));
+                } else {
+                    window.surveillanceSocket.send(JSON.stringify({
+                        type: 'start_recording',
+                        csrfmiddlewaretoken: csrfToken
+                    }));
+                }
+            });
+            // Reset button
+            resetBtn.addEventListener('click', () => {
+                state.settings = {
+                    resolution: '1080p',
+                    frameRate: 30,
+                    brightness: 50,
+                    contrast: 50,
+                    motionDetection: true,
+                    personDetection: true,
+                    vehicleDetection: false,
+                    sensitivity: 7,
+                    autoRecord: true,
+                    quality: 'High'
+                };
+                applyVideoFilters();
+                updateSettingsUI();
+            });
+            // Save button
+            saveBtn.addEventListener('click', () => {
+                window.surveillanceSocket.send(JSON.stringify({
+                    type: 'settings_update',
+                    settings: state.settings,
+                    csrfmiddlewaretoken: csrfToken
+                }));
+                alert('Settings saved successfully!');
+            });
+            // Resolution dropdown
+            resolutionDropdown.addEventListener('click', () => {
+                resolutionMenu.classList.toggle('show');
+            });
+            resolutionMenu.addEventListener('click', (e) => {
+                if (e.target.classList.contains('dropdown-item')) {
+                    const newResolution = e.target.getAttribute('data-value');
+                    state.settings.resolution = newResolution;
+                    resolutionValue.textContent = newResolution;
+                    resolutionMenu.classList.remove('show');
+                    
+                    // Update video stream
+                    window.surveillanceSocket.send(JSON.stringify({
+                        type: 'settings_update',
+                        settings: state.settings,
+                        csrfmiddlewaretoken: csrfToken
+                    }));
+                }
+            });
+            // Frame rate slider
+            frameRateSlider.addEventListener('input', () => {
+                const newFrameRate = frameRateSlider.value;
+                state.settings.frameRate = newFrameRate;
+                frameRateValue.textContent = `${newFrameRate} FPS`;
+                
+                // Update video stream
+                window.surveillanceSocket.send(JSON.stringify({
+                    type: 'settings_update',
+                    settings: state.settings,
+                    csrfmiddlewaretoken: csrfToken
+                }));
+            });
+            // Brightness slider
+            brightnessSlider.addEventListener('input', () => {
+                const newBrightness = brightnessSlider.value;
+                state.settings.brightness = newBrightness;
+                brightnessValue.textContent = `${newBrightness}%`;
+                applyVideoFilters();
+                
+                // Update video stream
+                window.surveillanceSocket.send(JSON.stringify({
+                    type: 'settings_update',
+                    settings: state.settings,
+                    csrfmiddlewaretoken: csrfToken
+                }));
+            });
+            // Contrast slider
+            contrastSlider.addEventListener('input', () => {
+                const newContrast = contrastSlider.value;
+                state.settings.contrast = newContrast;
+                contrastValue.textContent = `${newContrast}%`;
+                applyVideoFilters();
+                
+                // Update video stream
+                window.surveillanceSocket.send(JSON.stringify({
+                    type: 'settings_update',
+                    settings: state.settings,
+                    csrfmiddlewaretoken: csrfToken
+                }));
+            });
+            // Motion detection toggle
+            motionToggle.addEventListener('click', () => {
+                state.settings.motionDetection = !state.settings.motionDetection;
+                motionToggle.classList.toggle('active');
+                
+                // Update video stream
+                window.surveillanceSocket.send(JSON.stringify({
+                    type: 'settings_update',
+                    settings: state.settings,
+                    csrfmiddlewaretoken: csrfToken
+                }));
+            });
+            // Person detection toggle
+            personToggle.addEventListener('click', () => {
+                state.settings.personDetection = !state.settings.personDetection;
+                personToggle.classList.toggle('active');
+                
+                // Update video stream
+                window.surveillanceSocket.send(JSON.stringify({
+                    type: 'settings_update',
+                    settings: state.settings,
+                    csrfmiddlewaretoken: csrfToken
+                }));
+            });
+            // Vehicle detection toggle
+            vehicleToggle.addEventListener('click', () => {
+                state.settings.vehicleDetection = !state.settings.vehicleDetection;
+                vehicleToggle.classList.toggle('active');
+                
+                // Update video stream
+                window.surveillanceSocket.send(JSON.stringify({
+                    type: 'settings_update',
+                    settings: state.settings,
+                    csrfmiddlewaretoken: csrfToken
+                }));
+            });
+            // Sensitivity slider
+            sensitivitySlider.addEventListener('input', () => {
+                const newSensitivity = sensitivitySlider.value;
+                state.settings.sensitivity = newSensitivity;
+                sensitivityValue.textContent = newSensitivity;
+                
+                // Update video stream
+                window.surveillanceSocket.send(JSON.stringify({
+                    type: 'settings_update',
+                    settings: state.settings,
+                    csrfmiddlewaretoken: csrfToken
+                }));
+            });
+            // Auto record toggle
+            autoRecordToggle.addEventListener('click', () => {
+                state.settings.autoRecord = !state.settings.autoRecord;
+                autoRecordToggle.classList.toggle('active');
+                
+                // Update video stream
+                window.surveillanceSocket.send(JSON.stringify({
+                    type: 'settings_update',
+                    settings: state.settings,
+                    csrfmiddlewaretoken: csrfToken
+                }));
+            });
+
+
+            // Quality dropdown
+            qualityDropdown.addEventListener('click', () => {
+                qualityMenu.classList.toggle('show');
+            });
+
+            qualityMenu.addEventListener('click', (e) => {
+                if (e.target.classList.contains('dropdown-item')) {
+                    const newQuality = e.target.getAttribute('data-value');
+                    state.settings.quality = newQuality;
+                    qualityValue.textContent = newQuality;
+                    qualityMenu.classList.remove('show');
+                    
+                    // Update video stream
+                    window.surveillanceSocket.send(JSON.stringify({
+                        type: 'settings_update',
+                        settings: state.settings,
+                        csrfmiddlewaretoken: csrfToken
+                    }));
+                }
+            });
+
+        }
+
+        // Update settings UI
+        function updateSettingsUI() {
+            const resolutionValue = document.getElementById('resolutionValue');
+            const qualityValue = document.getElementById('qualityValue');
+            const frameRateValue = document.getElementById('frameRateValue');
+            const brightnessValue = document.getElementById('brightnessValue');
+            const contrastValue = document.getElementById('contrastValue');
+            const sensitivityValue = document.getElementById('sensitivityValue');
+            const motionToggle = document.getElementById('motionToggle');
+            const personToggle = document.getElementById('personToggle');
+            const vehicleToggle = document.getElementById('vehicleToggle');
+            const autoRecordToggle = document.getElementById('autoRecordToggle');
+            resolutionValue.textContent = state.settings.resolution;
+            qualityValue.textContent = state.settings.quality;
+            frameRateValue.textContent = `${state.settings.frameRate} FPS`;
+            brightnessValue.textContent = `${state.settings.brightness}%`;
+            contrastValue.textContent = `${state.settings.contrast}%`;
+            sensitivityValue.textContent = state.settings.sensitivity;
+            motionToggle.classList.toggle('active', state.settings.motionDetection);   
+            personToggle.classList.toggle('active', state.settings.personDetection);
+            vehicleToggle.classList.toggle('active', state.settings.vehicleDetection);
+            autoRecordToggle.classList.toggle('active', state.settings.autoRecord);
+        }
+        // Initialize everything
+        function initialize() {
+            createParticles();
+            initializeVideoStream();
+            initializeEventListeners();
+            updateSettingsUI();
+        }
+
+        // Start the application
+        document.addEventListener('DOMContentLoaded', () => {
+            initialize();
+        });
+
+            
+
+
+
+        </script>
+
+        </body>
+        </html>

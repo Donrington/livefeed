@@ -10,16 +10,23 @@ import argparse
 from datetime import datetime
 
 class ZeroLatencyPublisher:
-    def __init__(self, mediamtx_path):
+    def __init__(self, mediamtx_path, camera_index, width, height, target_fps, bitrate, rtsp_url):
         self.running = False
-        self.camera_index = 0
-        self.width = 640
-        self.height = 480
-        self.target_fps = 30
-        self.bitrate = '800k'
-        self.rtsp_url = "rtsp://localhost:8554/zerolatency"
+        self.camera_index = camera_index
+        self.width = width
+        self.height = height
+        self.target_fps = target_fps
+        self.bitrate = bitrate
+        self.rtsp_url = rtsp_url
         self.mediamtx_path = mediamtx_path
         
+        """ Get the local IP address to construct the RTSP URL."""
+        """static method to get local IP"""
+        local_ip = self.get_local_ip()
+        self.rtsp_url = f"rtsp://{local_ip}:8554/zerolatency"
+        print(f"RTSP URL: {self.rtsp_url}")
+        
+        """ Initialize camera and ffmpeg process variables."""
         self.cap = None
         self.ffmpeg_process = None
         self.mediamtx_process = None
@@ -29,12 +36,28 @@ class ZeroLatencyPublisher:
         
         atexit.register(self.stop)
         signal.signal(signal.SIGINT, self.signal_handler)
+     
+     
+    """"removed self from get_local_ip to make it a static method"""     
+    @staticmethod 
+    def get_local_ip():
+        """Simple method to get local IP address"""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                return s.getsockname()[0]
+        except:
+            return "localhost"
         
-    def log(self, message):
+    @staticmethod   
+    def log(message):
+        """Static method to log messages with timestamp"""
         timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
         print(f"[{timestamp}] {message}")
-        
-    def check_mediamtx(self):
+   
+   
+    @staticmethod     
+    def check_mediamtx():
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(2)
@@ -44,13 +67,15 @@ class ZeroLatencyPublisher:
         except:
             return False
     
+    
+    """"chnages self. to ZeroLatencyPublisher to make it a static method"""
     def start_mediamtx(self):
         if not os.path.exists(self.mediamtx_path):
-            self.log(f"MediaMTX executable not found at {self.mediamtx_path}")
+            ZeroLatencyPublisher.log(f"MediaMTX executable not found at {self.mediamtx_path}")
             return False
             
         try:
-            self.log("Starting MediaMTX...")
+            ZeroLatencyPublisher.log("Starting MediaMTX...")
             self.mediamtx_process = subprocess.Popen(
                 [self.mediamtx_path],
                 cwd=os.path.dirname(self.mediamtx_path),
@@ -61,35 +86,37 @@ class ZeroLatencyPublisher:
             # Wait for MediaMTX to start up
             for i in range(10):
                 time.sleep(1)
-                if self.check_mediamtx():
-                    self.log("MediaMTX started successfully")
+                if ZeroLatencyPublisher.check_mediamtx():
+                    ZeroLatencyPublisher.log("MediaMTX started successfully")
                     return True
-                self.log(f"Waiting for MediaMTX to start... ({i+1}/10)")
+                ZeroLatencyPublisher.log(f"Waiting for MediaMTX to start... ({i+1}/10)")
             
-            self.log("MediaMTX failed to start within 10 seconds")
+            ZeroLatencyPublisher.log("MediaMTX failed to start within 10 seconds")
             return False
             
         except Exception as e:
-            self.log(f"Error starting MediaMTX: {e}")
+            ZeroLatencyPublisher.log(f"Error starting MediaMTX: {e}")
             return False
     
     def stop_mediamtx(self):
         if self.mediamtx_process:
             try:
-                self.log("Stopping MediaMTX...")
+                ZeroLatencyPublisher.log("Stopping MediaMTX...")
                 self.mediamtx_process.terminate()
                 self.mediamtx_process.wait(timeout=5)
-                self.log("MediaMTX stopped")
+                ZeroLatencyPublisher.log("MediaMTX stopped")
             except subprocess.TimeoutExpired:
-                self.log("Force killing MediaMTX...")
+                ZeroLatencyPublisher.log("Force killing MediaMTX...")
                 self.mediamtx_process.kill()
             except Exception as e:
-                self.log(f"Error stopping MediaMTX: {e}")
+                ZeroLatencyPublisher.log(f"Error stopping MediaMTX: {e}")
             finally:
                 self.mediamtx_process = None
     
+    
     def setup_camera(self):
-        self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
+        
+        self.cap = cv2.VideoCapture(self.camera_index)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         self.cap.set(cv2.CAP_PROP_FPS, self.target_fps)
@@ -130,20 +157,25 @@ class ZeroLatencyPublisher:
             self.fps_timer = current_time
             
     def start(self):
-        if not self.check_mediamtx():
-            self.log("MediaMTX not running, attempting to start...")
+        
+        """Added a Url log to indicate where the stream will be available"""
+        ZeroLatencyPublisher.log(f"Stream will be available at: {self.rtsp_url}")
+        
+        if not ZeroLatencyPublisher.check_mediamtx():
+            ZeroLatencyPublisher.log("MediaMTX not running, attempting to start...")
             if not self.start_mediamtx():
-                self.log("Failed to start MediaMTX")
+                ZeroLatencyPublisher.log("Failed to start MediaMTX")
                 return
             
         self.setup_camera()
         self.setup_ffmpeg()
         
         self.running = True
-        self.log("Publisher started")
+        ZeroLatencyPublisher.log("Publisher started")
         
         while self.running:
             ret, frame = self.cap.read()
+            print(f"Frame read: {ret}")
             if not ret:
                 continue
             
@@ -176,14 +208,14 @@ class ZeroLatencyPublisher:
             cv2.destroyAllWindows()
             
         self.stop_mediamtx()
-        self.log("Stopped")
+        ZeroLatencyPublisher.log("Stopped")
 
 def main():
     parser = argparse.ArgumentParser(description='Zero Latency RTSP Publisher')
     parser.add_argument('--mediamtx-path', '-m', 
                        required=True,
                        help='Path to the MediaMTX executable')
-    parser.add_argument('--camera-index', '-c', 
+    parser.add_argument('--camera_index', '-c', 
                        type=int, 
                        default=0,
                        help='Camera index to use (default: 0)')
@@ -203,20 +235,25 @@ def main():
                        default='800k',
                        help='Video bitrate (default: 800k)')
     parser.add_argument('--rtsp-url', '-u', 
-                       default='rtsp://localhost:8554/zerolatency',
+                       default='rtsp://192.168.0.183:8554/zerolatency',
                        help='RTSP URL to publish to (default: rtsp://localhost:8554/zerolatency)')
     
     args = parser.parse_args()
     
-    publisher = ZeroLatencyPublisher(args.mediamtx_path)
-    publisher.camera_index = args.camera_index
-    publisher.width = args.width
-    publisher.height = args.height
-    publisher.target_fps = args.fps
-    publisher.bitrate = args.bitrate
-    publisher.rtsp_url = args.rtsp_url
+    publisher = ZeroLatencyPublisher(
+        args.mediamtx_path,
+        args.camera_index,
+        args.width,
+        args.height,
+        args.fps,
+        args.bitrate,
+        args.rtsp_url
+    )
     
     publisher.start()
 
 if __name__ == "__main__":
     main()
+    
+    
+    
