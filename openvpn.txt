@@ -34,3 +34,19 @@ to edit the file the press ctrl x and y and enter to exit
 
 The core issue: OpenVPN installation changed your firewall rules to prioritize security, inadvertently blocking local network SSH access while allowing VPN SSH access.
 Connect via VPN first (ssh nextgen@10.8.0.1) and run the diagnostic commands above. Share the outputs and I'll help you fix the exact configuration issue! 🔧
+
+
+
+
+# Local network
+python3 zero_latency_receiver.py --rtsp-url rtsp://192.168.0.183:8554/zerolatency
+
+# VPN network  
+python3 zero_latency_receiver.py --rtsp-url rtsp://10.8.0.1:8554/zerolatency
+
+# Auto-detect (will use local IP)
+python3 zero_latency_receiver.py
+
+
+# Test both local and VPN connectivity
+python3 zero_latency_receiver.py --test-connection

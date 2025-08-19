@@ -6,15 +6,26 @@ import time
 import re
 import signal
 import atexit
+import socket
 import argparse
 from datetime import datetime
 
 class ZeroLatencyReceiver:
-    def __init__(self, rtsp_url="rtsp://localhost:8554/zerolatency", display_mode="headless"):
+    def __init__(self, rtsp_url=None, display_mode="headless"):
         self.name = "ZeroLatencyReceiver"
         self.running = False
-        self.rtsp_url = rtsp_url
         self.display_mode = display_mode  # "headless", "display", or "save"
+        
+        """ Get the local IP address to construct the RTSP URL if not provided."""
+        if rtsp_url is None:
+            local_ip = ZeroLatencyReceiver.get_local_ip()
+            self.rtsp_url = f"rtsp://{local_ip}:8554/zerolatency"
+            ZeroLatencyReceiver.log(f"Auto-detected IP for RTSP: {local_ip}")
+        else:
+            self.rtsp_url = rtsp_url
+            
+        ZeroLatencyReceiver.log(f"RTSP URL: {self.rtsp_url}")
+        
         self.cap = None
         self.fps_counter = 0
         self.fps_timer = time.time()
@@ -29,19 +40,69 @@ class ZeroLatencyReceiver:
         # Signal handlers for graceful shutdown
         atexit.register(self.stop)
         signal.signal(signal.SIGINT, self.signal_handler)
-        
-    def log(self, message):
+    
+    """Added static method for IP detection - same as publisher"""
+    @staticmethod 
+    def get_local_ip():
+        """Simple static method to get local IP address"""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                return s.getsockname()[0]
+        except:
+            return "localhost"
+    
+    """Added static method for logging - same as publisher"""        
+    @staticmethod   
+    def log(message):
+        """Static method to log messages with timestamp"""
         timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
-        print(f"[{timestamp}] {self.name}: {message}")
+        print(f"[{timestamp}] ZeroLatencyReceiver: {message}")
+    
+    """Added static method to check if server is available"""
+    @staticmethod     
+    def check_rtsp_server(host, port):
+        """Static method to check if RTSP server is available"""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex((host, port))
+            sock.close()
+            return result == 0
+        except:
+            return False
+    
+    """Added static method to build RTSP URLs"""
+    @staticmethod
+    def build_rtsp_url(ip, port, stream_name):
+        """Static method to build RTSP URL"""
+        return f"rtsp://{ip}:{port}/{stream_name}"
         
     def signal_handler(self, sig, frame):
-        self.log("Received interrupt signal, shutting down...")
+        ZeroLatencyReceiver.log("Received interrupt signal, shutting down...")
         self.stop()
         sys.exit(0)
         
     def setup_rtsp_connection(self):
         """Setup RTSP connection with Raspberry Pi optimizations"""
-        self.log(f"Connecting to RTSP stream: {self.rtsp_url}")
+        ZeroLatencyReceiver.log(f"Connecting to RTSP stream: {self.rtsp_url}")
+        
+        # Extract host and port from RTSP URL for connectivity check
+        try:
+            # Parse rtsp://host:port/stream format
+            url_parts = self.rtsp_url.replace('rtsp://', '').split('/')
+            host_port = url_parts[0].split(':')
+            host = host_port[0]
+            port = int(host_port[1]) if len(host_port) > 1 else 8554
+            
+            # Check if RTSP server is reachable
+            if not ZeroLatencyReceiver.check_rtsp_server(host, port):
+                ZeroLatencyReceiver.log(f"Warning: Cannot reach RTSP server at {host}:{port}")
+            else:
+                ZeroLatencyReceiver.log(f"RTSP server at {host}:{port} is reachable")
+                
+        except Exception as e:
+            ZeroLatencyReceiver.log(f"Could not parse RTSP URL for connectivity check: {e}")
         
         # Try different backends in order of preference for Raspberry Pi
         backends = [
@@ -63,21 +124,21 @@ class ZeroLatencyReceiver:
                 
                 if self.cap.isOpened():
                     backend_name = self.cap.getBackendName()
-                    self.log(f"Successfully connected using backend: {backend_name}")
+                    ZeroLatencyReceiver.log(f"Successfully connected using backend: {backend_name}")
                     
                     # Get stream properties
                     width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                     fps = self.cap.get(cv2.CAP_PROP_FPS)
                     
-                    self.log(f"Stream properties: {width}x{height} @ {fps} FPS")
+                    ZeroLatencyReceiver.log(f"Stream properties: {width}x{height} @ {fps} FPS")
                     return True
                     
             except Exception as e:
-                self.log(f"Failed to connect with backend {backend}: {e}")
+                ZeroLatencyReceiver.log(f"Failed to connect with backend {backend}: {e}")
                 continue
         
-        self.log("Failed to connect to RTSP stream with any backend")
+        ZeroLatencyReceiver.log("Failed to connect to RTSP stream with any backend")
         return False
         
     def extract_publisher_timestamp_simple(self, frame):
@@ -135,6 +196,14 @@ class ZeroLatencyReceiver:
         latency_text = f"EST LAT: {self.latency_ms:.1f}ms"
         frame_text = f"FRAME: {self.frame_count}"
         
+        # Extract IP from RTSP URL for display
+        try:
+            url_parts = self.rtsp_url.replace('rtsp://', '').split('/')
+            host_port = url_parts[0]
+            ip_text = f"SRC: {host_port}"
+        except:
+            ip_text = "SRC: Unknown"
+        
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.5
         thickness = 1
@@ -149,6 +218,7 @@ class ZeroLatencyReceiver:
         cv2.putText(frame, fps_text, (x_pos, 40), font, font_scale, color, thickness)
         cv2.putText(frame, latency_text, (x_pos, 60), font, font_scale, color, thickness)
         cv2.putText(frame, frame_text, (x_pos, 80), font, font_scale, color, thickness)
+        cv2.putText(frame, ip_text, (x_pos, 100), font, 0.4, color, thickness)
         
         return frame
         
@@ -172,10 +242,10 @@ class ZeroLatencyReceiver:
             self.video_writer = cv2.VideoWriter(filename, fourcc, 20.0, (frame_width, frame_height))
             
             if self.video_writer.isOpened():
-                self.log(f"Saving video to: {filename}")
+                ZeroLatencyReceiver.log(f"Saving video to: {filename}")
                 return True
             else:
-                self.log("Failed to setup video writer")
+                ZeroLatencyReceiver.log("Failed to setup video writer")
                 return False
         return True
         
@@ -199,11 +269,11 @@ class ZeroLatencyReceiver:
                 cv2.imshow('Zero Latency Receiver', frame_with_overlay)
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord('q'):
-                    self.log("User pressed 'q', stopping...")
+                    ZeroLatencyReceiver.log("User pressed 'q', stopping...")
                     return False
             except cv2.error:
                 # No display available, switch to headless mode
-                self.log("No display available, switching to headless mode")
+                ZeroLatencyReceiver.log("No display available, switching to headless mode")
                 self.display_mode = "headless"
                 
         elif self.display_mode == "save" and self.video_writer:
@@ -212,19 +282,20 @@ class ZeroLatencyReceiver:
             
         # In headless mode, just log progress occasionally
         if self.display_mode == "headless" and self.frame_count % 150 == 0:  # Every 5 seconds at 30fps
-            self.log(f"Processed {self.frame_count} frames, FPS: {self.current_fps:.1f}, Latency: {self.latency_ms:.1f}ms")
+            ZeroLatencyReceiver.log(f"Processed {self.frame_count} frames, FPS: {self.current_fps:.1f}, Latency: {self.latency_ms:.1f}ms")
             
         return True
         
     def start(self):
         """Start the receiver"""
         if not self.setup_rtsp_connection():
-            self.log("Failed to setup RTSP connection")
+            ZeroLatencyReceiver.log("Failed to setup RTSP connection")
             return False
             
         self.running = True
-        self.log("Receiver started")
-        self.log(f"Display mode: {self.display_mode}")
+        ZeroLatencyReceiver.log("Receiver started")
+        ZeroLatencyReceiver.log(f"Display mode: {self.display_mode}")
+        ZeroLatencyReceiver.log(f"Receiving from: {self.rtsp_url}")
         
         # Initialize video writer if needed
         first_frame = True
@@ -234,7 +305,7 @@ class ZeroLatencyReceiver:
                 ret, frame = self.cap.read()
                 
                 if not ret:
-                    self.log("Failed to read frame, retrying...")
+                    ZeroLatencyReceiver.log("Failed to read frame, retrying...")
                     time.sleep(0.1)
                     continue
                 
@@ -249,9 +320,9 @@ class ZeroLatencyReceiver:
                     break
                     
         except KeyboardInterrupt:
-            self.log("Interrupted by user")
+            ZeroLatencyReceiver.log("Interrupted by user")
         except Exception as e:
-            self.log(f"Error during operation: {e}")
+            ZeroLatencyReceiver.log(f"Error during operation: {e}")
         finally:
             self.stop()
             
@@ -264,28 +335,52 @@ class ZeroLatencyReceiver:
         
         if self.cap:
             self.cap.release()
-            self.log("Released video capture")
+            ZeroLatencyReceiver.log("Released video capture")
             
         if self.video_writer:
             self.video_writer.release()
-            self.log("Released video writer")
+            ZeroLatencyReceiver.log("Released video writer")
             
         if self.display_mode == "display":
             cv2.destroyAllWindows()
             
-        self.log(f"Stopped. Total frames processed: {self.frame_count}")
+        ZeroLatencyReceiver.log(f"Stopped. Total frames processed: {self.frame_count}")
 
 def main():
-    parser = argparse.ArgumentParser(description='Zero Latency RTSP Receiver for Raspberry Pi')
+    parser = argparse.ArgumentParser(description='Zero Latency RTSP Receiver with IP Auto-Detection')
     parser.add_argument('--rtsp-url', '-u', 
-                       default='rtsp://localhost:8554/zerolatency',
-                       help='RTSP URL to receive from (default: rtsp://localhost:8554/zerolatency)')
+                       default=None,
+                       help='RTSP URL to receive from (auto-detected if not specified)')
     parser.add_argument('--display-mode', '-d',
                        choices=['headless', 'display', 'save'],
                        default='headless',
                        help='Display mode: headless (no display), display (show window), save (save to file)')
+    parser.add_argument('--test-connection', '-t',
+                       action='store_true',
+                       help='Test connection to auto-detected IP and exit')
     
     args = parser.parse_args()
+    
+    # Test connection mode
+    if args.test_connection:
+        local_ip = ZeroLatencyReceiver.get_local_ip()
+        print(f"Auto-detected IP: {local_ip}")
+        print(f"Testing RTSP server connectivity...")
+        
+        # Test local IP
+        if ZeroLatencyReceiver.check_rtsp_server(local_ip, 8554):
+            print(f"✅ RTSP server reachable at {local_ip}:8554")
+        else:
+            print(f"❌ RTSP server not reachable at {local_ip}:8554")
+        
+        # Test VPN IP if different
+        if local_ip != "10.8.0.1":
+            if ZeroLatencyReceiver.check_rtsp_server("10.8.0.1", 8554):
+                print(f"✅ RTSP server reachable via VPN at 10.8.0.1:8554")
+            else:
+                print(f"❌ RTSP server not reachable via VPN at 10.8.0.1:8554")
+        
+        return
     
     # Check if display is available when display mode is requested
     if args.display_mode == 'display':
