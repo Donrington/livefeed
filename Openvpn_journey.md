@@ -246,3 +246,12 @@ ipconfig | findstr "10.8.0"
 ---
 
 **Note**: Always run OpenVPN commands with appropriate privileges (sudo on Linux, Administrator on Windows) and ensure firewall rules allow VPN traffic.
+
+
+**Error Encounter**: encountered a firewall blocking inbound and outbound traffic causing a ping issue from the pi to the windows so i had to add a specific rule to allow inbound ICMP (ping traffic) so i can have full bidirectional connectivity through my openvpn tunnel
+
+# Allow SSH from VPN subnet
+netsh advfirewall firewall add rule name="VPN SSH In" dir=in action=allow protocol=tcp localport=22 remoteip=10.8.0.0/24
+
+# Allow RDP if you need remote desktop access
+netsh advfirewall firewall add rule name="VPN RDP In" dir=in action=allow protocol=tcp localport=3389 remoteip=10.8.0.0/24
