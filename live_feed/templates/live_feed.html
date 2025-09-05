@@ -127,6 +127,68 @@
             border: 1px solid var(--glass-border);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             animation: fadeInUp 0.8s ease-out 0.6s both;
+            margin-bottom: 1rem;
+        }
+
+        .stream-controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .stream-btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+        }
+
+        .stream-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .stream-btn.active {
+            background: var(--accent-gradient);
+            border-color: transparent;
+        }
+
+        .stream-info {
+            background: var(--dark-glass);
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .webrtc-container {
+            display: none;
+        }
+
+        .hls-container {
+            display: block;
+        }
+
+        #webrtcVideo, #hlsVideo {
+            width: 100%;
+            height: auto;
+            max-height: 60vh;
+            object-fit: cover;
+            border-radius: 12px;
         }
 
         .video-container::before {
@@ -307,8 +369,27 @@
             </div>
         </div>
         
+        <div class="stream-controls">
+            <button class="stream-btn active" id="hlsBtn" onclick="switchToHLS()">📺 HLS Stream</button>
+            <button class="stream-btn" id="webrtcBtn" onclick="switchToWebRTC()">🌐 WebRTC Stream</button>
+            <button class="stream-btn" id="refreshBtn" onclick="refreshStream()">🔄 Refresh</button>
+        </div>
+        
+        <div class="stream-info">
+            <div class="connection-status">
+                <span class="status-dot" id="streamDot"></span>
+                <span id="streamStatus">Initializing...</span>
+            </div>
+            <div id="streamDetails" style="font-size: 0.9rem; color: var(--text-secondary);"></div>
+        </div>
+        
         <div class="video-container">
-            <video id="video" controls autoplay muted></video>
+            <div class="hls-container" id="hlsContainer">
+                <video id="hlsVideo" controls autoplay muted playsinline></video>
+            </div>
+            <div class="webrtc-container" id="webrtcContainer">
+                <video id="webrtcVideo" controls autoplay muted playsinline></video>
+            </div>
         </div>
         
         <div class="info-grid">
@@ -320,16 +401,17 @@
                 <ul class="url-list">
                     <li class="url-item">
                         <div class="url-label">🎬 HLS Stream</div>
-                        <code class="url-code">http://localhost:8888/zerolatency/index.m3u8</code>
+                        <code class="url-code" id="hlsUrl">http://localhost:8888/zerolatency/index.m3u8</code>
                     </li>
                     <li class="url-item">
                         <div class="url-label">📺 RTSP Stream</div>
-                        <code class="url-code">rtsp://localhost:8554/zerolatency</code>
+                        <code class="url-code" id="rtspUrl">rtsp://localhost:8554/zerolatency</code>
                         <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">Use with VLC Player</div>
                     </li>
                     <li class="url-item">
                         <div class="url-label">🌐 WebRTC Stream</div>
-                        <code class="url-code">http://localhost:8889/zerolatency</code>
+                        <code class="url-code" id="webrtcUrl">http://localhost:8889/zerolatency</code>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">Ultra-low latency</div>
                     </li>
                 </ul>
             </div>
@@ -350,7 +432,7 @@
                     </li>
                     <li class="instruction-item">
                         <div class="instruction-step">Step 3</div>
-                        <div class="instruction-text">This web interface displays the HLS stream from MediaMTX</div>
+                        <div class="instruction-text">Use the stream controls above to switch between HLS and WebRTC</div>
                     </li>
                 </ul>
             </div>
@@ -358,72 +440,296 @@
     </div>
     
     <script>
-        const video = document.getElementById('video');
+        // Global variables
+        let currentStreamType = 'hls';
+        let hls = null;
+        let webrtcPeerConnection = null;
+        let streamUrls = {
+            hls: 'http://localhost:8888/zerolatency/index.m3u8',
+            rtsp: 'rtsp://localhost:8554/zerolatency',
+            webrtc: 'http://localhost:8889/zerolatency'
+        };
+        
+        // DOM elements
         const statusDiv = document.getElementById('status');
         const statusDot = statusDiv.querySelector('.status-dot');
         const statusText = statusDiv.querySelector('span:last-child');
+        const streamDot = document.getElementById('streamDot');
+        const streamStatus = document.getElementById('streamStatus');
+        const streamDetails = document.getElementById('streamDetails');
+        const hlsVideo = document.getElementById('hlsVideo');
+        const webrtcVideo = document.getElementById('webrtcVideo');
+        const hlsContainer = document.getElementById('hlsContainer');
+        const webrtcContainer = document.getElementById('webrtcContainer');
+        const hlsBtn = document.getElementById('hlsBtn');
+        const webrtcBtn = document.getElementById('webrtcBtn');
         
-        function updateStatus(message, type = 'warning') {
+        function updateMainStatus(message, type = 'warning') {
             statusText.textContent = message;
             statusDot.className = `status-dot ${type}`;
         }
         
-        // Check stream status
-        fetch('/api/status/')
-            .then(response => response.json())
-            .then(data => {
-                updateStatus('Stream URLs configured', 'success');
-                console.log('Stream URLs:', data);
-            })
-            .catch(error => {
-                updateStatus('Error checking stream status', 'error');
-                console.error('Error:', error);
-            });
+        function updateStreamStatus(message, type = 'warning', details = '') {
+            streamStatus.textContent = message;
+            streamDot.className = `status-dot ${type}`;
+            streamDetails.textContent = details;
+        }
         
-        // Try HLS stream
-        const hlsUrl = 'http://localhost:8888/zerolatency/index.m3u8';
+        function updateStreamUrls(urls) {
+            if (urls.hls_url) {
+                streamUrls.hls = urls.hls_url;
+                document.getElementById('hlsUrl').textContent = urls.hls_url;
+            }
+            if (urls.rtsp_url) {
+                streamUrls.rtsp = urls.rtsp_url;
+                document.getElementById('rtspUrl').textContent = urls.rtsp_url;
+            }
+            if (urls.webrtc_url) {
+                streamUrls.webrtc = urls.webrtc_url;
+                document.getElementById('webrtcUrl').textContent = urls.webrtc_url;
+            }
+        }
         
-        console.log('Attempting HLS stream:', hlsUrl);
+        function switchToHLS() {
+            currentStreamType = 'hls';
+            hlsBtn.classList.add('active');
+            webrtcBtn.classList.remove('active');
+            hlsContainer.style.display = 'block';
+            webrtcContainer.style.display = 'none';
+            
+            // Stop WebRTC if running
+            stopWebRTC();
+            
+            // Start HLS
+            startHLS();
+        }
         
-        if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            // Native support (Safari)
-            video.src = hlsUrl;
-            video.addEventListener('loadstart', () => {
-                updateStatus('Loading HLS stream...', 'warning');
-            });
-            video.addEventListener('canplay', () => {
-                updateStatus('HLS stream ready', 'success');
-            });
-            video.addEventListener('error', () => {
-                updateStatus('HLS stream error - check if publisher is running', 'error');
-            });
-        } else {
-            // Try to load HLS.js for other browsers
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
-            script.onload = () => {
-                if (Hls.isSupported()) {
-                    const hls = new Hls();
-                    hls.loadSource(hlsUrl);
-                    hls.attachMedia(video);
-                    
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        updateStatus('HLS stream loaded via HLS.js', 'success');
-                    });
-                    
-                    hls.on(Hls.Events.ERROR, (event, data) => {
-                        updateStatus('HLS error - check if publisher is running', 'error');
-                        console.error('HLS error:', data);
+        function switchToWebRTC() {
+            currentStreamType = 'webrtc';
+            webrtcBtn.classList.add('active');
+            hlsBtn.classList.remove('active');
+            webrtcContainer.style.display = 'block';
+            hlsContainer.style.display = 'none';
+            
+            // Stop HLS if running
+            stopHLS();
+            
+            // Start WebRTC
+            startWebRTC();
+        }
+        
+        function refreshStream() {
+            if (currentStreamType === 'hls') {
+                stopHLS();
+                setTimeout(() => startHLS(), 1000);
+            } else {
+                stopWebRTC();
+                setTimeout(() => startWebRTC(), 1000);
+            }
+        }
+        
+        function startHLS() {
+            updateStreamStatus('Loading HLS stream...', 'warning', 'Connecting to ' + streamUrls.hls);
+            
+            if (hlsVideo.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native HLS support (Safari)
+                hlsVideo.src = streamUrls.hls;
+                setupHLSEventListeners();
+            } else {
+                // Load HLS.js for other browsers
+                if (typeof Hls === 'undefined') {
+                    loadHLSJS().then(() => setupHLSJS()).catch(err => {
+                        updateStreamStatus('Failed to load HLS.js', 'error', err.message);
                     });
                 } else {
-                    updateStatus('HLS not supported - use VLC with RTSP URL', 'error');
+                    setupHLSJS();
                 }
-            };
-            script.onerror = () => {
-                updateStatus('Failed to load HLS.js', 'error');
-            };
-            document.head.appendChild(script);
+            }
         }
+        
+        function setupHLSEventListeners() {
+            hlsVideo.addEventListener('loadstart', () => {
+                updateStreamStatus('Loading HLS stream...', 'warning');
+            });
+            
+            hlsVideo.addEventListener('canplay', () => {
+                updateStreamStatus('HLS stream ready', 'success', `Resolution: ${hlsVideo.videoWidth}x${hlsVideo.videoHeight}`);
+            });
+            
+            hlsVideo.addEventListener('error', (e) => {
+                updateStreamStatus('HLS stream error', 'error', 'Check if publisher is running');
+                console.error('HLS video error:', e);
+            });
+            
+            hlsVideo.addEventListener('playing', () => {
+                updateStreamStatus('HLS playing', 'success', `${hlsVideo.videoWidth}x${hlsVideo.videoHeight} @ ${Math.round(hlsVideo.playbackRate * 30)}fps`);
+            });
+        }
+        
+        function loadHLSJS() {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+        
+        function setupHLSJS() {
+            if (Hls.isSupported()) {
+                hls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    backBufferLength: 90,
+                    maxBufferLength: 30,
+                    maxMaxBufferLength: 60
+                });
+                
+                hls.loadSource(streamUrls.hls);
+                hls.attachMedia(hlsVideo);
+                
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    updateStreamStatus('HLS manifest loaded', 'success', 'Stream ready via HLS.js');
+                    hlsVideo.play().catch(console.error);
+                });
+                
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        updateStreamStatus('Fatal HLS error', 'error', data.details);
+                        console.error('Fatal HLS error:', data);
+                    } else {
+                        console.warn('HLS warning:', data);
+                    }
+                });
+                
+                hls.on(Hls.Events.FRAG_LOADED, () => {
+                    updateStreamStatus('HLS streaming', 'success', `${hlsVideo.videoWidth}x${hlsVideo.videoHeight}`);
+                });
+                
+                setupHLSEventListeners();
+            } else {
+                updateStreamStatus('HLS not supported', 'error', 'Try WebRTC or use VLC with RTSP');
+            }
+        }
+        
+        function stopHLS() {
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+            hlsVideo.pause();
+            hlsVideo.src = '';
+        }
+        
+        async function startWebRTC() {
+            updateStreamStatus('Starting WebRTC...', 'warning', 'Connecting to ' + streamUrls.webrtc);
+            
+            try {
+                // Create peer connection
+                webrtcPeerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                webrtcPeerConnection.ontrack = (event) => {
+                    webrtcVideo.srcObject = event.streams[0];
+                    updateStreamStatus('WebRTC connected', 'success', 'Ultra-low latency stream active');
+                };
+                
+                webrtcPeerConnection.oniceconnectionstatechange = () => {
+                    const state = webrtcPeerConnection.iceConnectionState;
+                    updateStreamStatus(`WebRTC: ${state}`, state === 'connected' ? 'success' : 'warning');
+                };
+                
+                // Create offer
+                const offer = await webrtcPeerConnection.createOffer({
+                    offerToReceiveVideo: true,
+                    offerToReceiveAudio: true
+                });
+                
+                await webrtcPeerConnection.setLocalDescription(offer);
+                
+                // Send offer to MediaMTX WebRTC endpoint
+                const response = await fetch(streamUrls.webrtc, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        offer: offer,
+                        type: 'offer'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`WebRTC handshake failed: ${response.status}`);
+                }
+                
+                const answer = await response.json();
+                await webrtcPeerConnection.setRemoteDescription(answer);
+                
+                updateStreamStatus('WebRTC handshake complete', 'success', 'Waiting for media...');
+                
+            } catch (error) {
+                updateStreamStatus('WebRTC failed', 'error', error.message);
+                console.error('WebRTC error:', error);
+            }
+        }
+        
+        function stopWebRTC() {
+            if (webrtcPeerConnection) {
+                webrtcPeerConnection.close();
+                webrtcPeerConnection = null;
+            }
+            webrtcVideo.srcObject = null;
+        }
+        
+        // Initialize application
+        async function initialize() {
+            updateMainStatus('Checking stream status...', 'warning');
+            
+            try {
+                // Check stream status from Django backend
+                const response = await fetch('/api/status/');
+                const data = await response.json();
+                
+                updateMainStatus('Stream URLs configured', 'success');
+                updateStreamUrls(data);
+                console.log('Stream URLs:', data);
+                
+                // Test connectivity to MediaMTX
+                await testConnectivity();
+                
+                // Start with HLS by default
+                switchToHLS();
+                
+            } catch (error) {
+                updateMainStatus('Error checking stream status', 'error');
+                console.error('Initialize error:', error);
+                
+                // Still try to start HLS with default URLs
+                switchToHLS();
+            }
+        }
+        
+        async function testConnectivity() {
+            try {
+                // Test HLS endpoint
+                const hlsResponse = await fetch(streamUrls.hls, { method: 'HEAD', mode: 'no-cors' });
+                console.log('HLS endpoint test:', hlsResponse);
+            } catch (error) {
+                console.warn('HLS endpoint not reachable:', error.message);
+            }
+        }
+        
+        // Start the application when page loads
+        document.addEventListener('DOMContentLoaded', initialize);
+        
+        // Cleanup when page unloads
+        window.addEventListener('beforeunload', () => {
+            stopHLS();
+            stopWebRTC();
+        });
     </script>
 </body>
 </html>
