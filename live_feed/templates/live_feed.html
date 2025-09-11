@@ -180,7 +180,7 @@
         }
 
         .hls-container {
-            display: block;
+            display: none;  /* HLS disabled */
         }
 
         #webrtcVideo, #hlsVideo {
@@ -370,8 +370,8 @@
         </div>
         
         <div class="stream-controls">
-            <button class="stream-btn active" id="hlsBtn" onclick="switchToHLS()">📺 HLS Stream</button>
-            <button class="stream-btn" id="webrtcBtn" onclick="switchToWebRTC()">🌐 WebRTC Stream</button>
+            <!-- <button class="stream-btn" id="hlsBtn" onclick="switchToHLS()">📺 HLS Stream</button> -->
+            <button class="stream-btn active" id="webrtcBtn" onclick="switchToWebRTC()">🌐 WebRTC Stream</button>
             <button class="stream-btn" id="refreshBtn" onclick="refreshStream()">🔄 Refresh</button>
         </div>
         
@@ -384,9 +384,10 @@
         </div>
         
         <div class="video-container">
-            <div class="hls-container" id="hlsContainer">
+            <!-- HLS disabled - WebRTC preferred -->
+            <!-- <div class="hls-container" id="hlsContainer">
                 <video id="hlsVideo" controls autoplay muted playsinline></video>
-            </div>
+            </div> -->
             <div class="webrtc-container" id="webrtcContainer">
                 <video id="webrtcVideo" controls autoplay muted playsinline></video>
             </div>
@@ -399,18 +400,19 @@
                     Available Stream URLs
                 </h3>
                 <ul class="url-list">
-                    <li class="url-item">
+                    <!-- HLS disabled - WebRTC preferred -->
+                    <!-- <li class="url-item">
                         <div class="url-label">🎬 HLS Stream</div>
-                        <code class="url-code" id="hlsUrl">http://localhost:8888/zerolatency/index.m3u8</code>
-                    </li>
+                        <code class="url-code" id="hlsUrl">{{ initial_urls.hls_url }}</code>
+                    </li> -->
                     <li class="url-item">
                         <div class="url-label">📺 RTSP Stream</div>
-                        <code class="url-code" id="rtspUrl">rtsp://localhost:8554/zerolatency</code>
+                        <code class="url-code" id="rtspUrl">{{ initial_urls.rtsp_url }}</code>
                         <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">Use with VLC Player</div>
                     </li>
                     <li class="url-item">
                         <div class="url-label">🌐 WebRTC Stream</div>
-                        <code class="url-code" id="webrtcUrl">http://localhost:8889/zerolatency</code>
+                        <code class="url-code" id="webrtcUrl">{{ initial_urls.webrtc_url }}</code>
                         <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">Ultra-low latency</div>
                     </li>
                 </ul>
@@ -432,7 +434,7 @@
                     </li>
                     <li class="instruction-item">
                         <div class="instruction-step">Step 3</div>
-                        <div class="instruction-text">Use the stream controls above to switch between HLS and WebRTC</div>
+                        <div class="instruction-text">Stream will auto-start with WebRTC (ultra-low latency), or use RTSP with VLC</div>
                     </li>
                 </ul>
             </div>
@@ -440,14 +442,22 @@
     </div>
     
     <script>
+        // Network Configuration (from Django backend)
+        const NETWORK_CONFIG = {
+            PI_IP: '{{ pi_ip }}',
+            STREAM_NAME: '{{ stream_name }}',
+        };
+        
         // Global variables
-        let currentStreamType = 'hls';
-        let hls = null;
+        let currentStreamType = 'webrtc';  // Default to WebRTC (HLS disabled)
+        // let hls = null;  // HLS disabled
         let webrtcPeerConnection = null;
+        
+        // Stream URLs - initialized from server configuration
         let streamUrls = {
-            hls: 'http://localhost:8888/zerolatency/index.m3u8',
-            rtsp: 'rtsp://localhost:8554/zerolatency',
-            webrtc: 'http://localhost:8889/zerolatency'
+            // hls: '{{ initial_urls.hls_url }}',  // HLS disabled
+            rtsp: '{{ initial_urls.rtsp_url }}',
+            webrtc: '{{ initial_urls.webrtc_url }}'
         };
         
         // DOM elements
@@ -457,11 +467,11 @@
         const streamDot = document.getElementById('streamDot');
         const streamStatus = document.getElementById('streamStatus');
         const streamDetails = document.getElementById('streamDetails');
-        const hlsVideo = document.getElementById('hlsVideo');
+        // const hlsVideo = document.getElementById('hlsVideo');  // HLS disabled
         const webrtcVideo = document.getElementById('webrtcVideo');
-        const hlsContainer = document.getElementById('hlsContainer');
+        // const hlsContainer = document.getElementById('hlsContainer');  // HLS disabled
         const webrtcContainer = document.getElementById('webrtcContainer');
-        const hlsBtn = document.getElementById('hlsBtn');
+        // const hlsBtn = document.getElementById('hlsBtn');  // HLS disabled
         const webrtcBtn = document.getElementById('webrtcBtn');
         
         function updateMainStatus(message, type = 'warning') {
@@ -476,10 +486,13 @@
         }
         
         function updateStreamUrls(urls) {
-            if (urls.hls_url) {
-                streamUrls.hls = urls.hls_url;
-                document.getElementById('hlsUrl').textContent = urls.hls_url;
-            }
+            // Update stream URLs if backend provides new ones
+            // (Normally they should match the initial configuration)
+            // HLS disabled
+            // if (urls.hls_url) {
+            //     streamUrls.hls = urls.hls_url;
+            //     document.getElementById('hlsUrl').textContent = urls.hls_url;
+            // }
             if (urls.rtsp_url) {
                 streamUrls.rtsp = urls.rtsp_url;
                 document.getElementById('rtspUrl').textContent = urls.rtsp_url;
@@ -490,44 +503,48 @@
             }
         }
         
-        function switchToHLS() {
-            currentStreamType = 'hls';
-            hlsBtn.classList.add('active');
-            webrtcBtn.classList.remove('active');
-            hlsContainer.style.display = 'block';
-            webrtcContainer.style.display = 'none';
-            
-            // Stop WebRTC if running
-            stopWebRTC();
-            
-            // Start HLS
-            startHLS();
-        }
+        // HLS functions disabled - WebRTC only
+        // function switchToHLS() {
+        //     currentStreamType = 'hls';
+        //     hlsBtn.classList.add('active');
+        //     webrtcBtn.classList.remove('active');
+        //     hlsContainer.style.display = 'block';
+        //     webrtcContainer.style.display = 'none';
+        //     
+        //     // Stop WebRTC if running
+        //     stopWebRTC();
+        //     
+        //     // Start HLS
+        //     startHLS();
+        // }
         
         function switchToWebRTC() {
             currentStreamType = 'webrtc';
             webrtcBtn.classList.add('active');
-            hlsBtn.classList.remove('active');
+            // hlsBtn.classList.remove('active');  // HLS disabled
             webrtcContainer.style.display = 'block';
-            hlsContainer.style.display = 'none';
+            // hlsContainer.style.display = 'none';  // HLS disabled
             
-            // Stop HLS if running
-            stopHLS();
+            // Stop HLS if running - HLS disabled
+            // stopHLS();
             
             // Start WebRTC
             startWebRTC();
         }
         
         function refreshStream() {
-            if (currentStreamType === 'hls') {
-                stopHLS();
-                setTimeout(() => startHLS(), 1000);
-            } else {
+            // HLS disabled - only WebRTC
+            // if (currentStreamType === 'hls') {
+            //     stopHLS();
+            //     setTimeout(() => startHLS(), 1000);
+            // } else {
                 stopWebRTC();
                 setTimeout(() => startWebRTC(), 1000);
-            }
+            // }
         }
         
+        // HLS functions disabled - WebRTC preferred for ultra-low latency
+        /*
         function startHLS() {
             updateStreamStatus('Loading HLS stream...', 'warning', 'Connecting to ' + streamUrls.hls);
             
@@ -621,6 +638,7 @@
             hlsVideo.pause();
             hlsVideo.src = '';
         }
+        */
         
         async function startWebRTC() {
             updateStreamStatus('Starting WebRTC...', 'warning', 'Connecting to ' + streamUrls.webrtc);
@@ -649,24 +667,24 @@
                 
                 await webrtcPeerConnection.setLocalDescription(offer);
                 
-                // Send offer to MediaMTX WebRTC endpoint
+                // Send offer to MediaMTX WHEP endpoint
                 const response = await fetch(streamUrls.webrtc, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/sdp',
                     },
-                    body: JSON.stringify({
-                        offer: offer,
-                        type: 'offer'
-                    })
+                    body: offer.sdp
                 });
                 
                 if (!response.ok) {
                     throw new Error(`WebRTC handshake failed: ${response.status}`);
                 }
                 
-                const answer = await response.json();
-                await webrtcPeerConnection.setRemoteDescription(answer);
+                const answerSdp = await response.text();
+                await webrtcPeerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answerSdp
+                });
                 
                 updateStreamStatus('WebRTC handshake complete', 'success', 'Waiting for media...');
                 
@@ -700,25 +718,26 @@
                 // Test connectivity to MediaMTX
                 await testConnectivity();
                 
-                // Start with HLS by default
-                switchToHLS();
+                // Start with WebRTC by default (HLS disabled)
+                switchToWebRTC();
                 
             } catch (error) {
                 updateMainStatus('Error checking stream status', 'error');
                 console.error('Initialize error:', error);
                 
-                // Still try to start HLS with default URLs
-                switchToHLS();
+                // Still try to start WebRTC with default URLs (HLS disabled)
+                switchToWebRTC();
             }
         }
         
         async function testConnectivity() {
             try {
-                // Test HLS endpoint
-                const hlsResponse = await fetch(streamUrls.hls, { method: 'HEAD', mode: 'no-cors' });
-                console.log('HLS endpoint test:', hlsResponse);
+                // Test HLS endpoint - HLS disabled
+                // const hlsResponse = await fetch(streamUrls.hls, { method: 'HEAD', mode: 'no-cors' });
+                // console.log('HLS endpoint test:', hlsResponse);
+                console.log('HLS testing disabled - using WebRTC + RTSP only');
             } catch (error) {
-                console.warn('HLS endpoint not reachable:', error.message);
+                console.warn('Connectivity test error:', error.message);
             }
         }
         
@@ -727,7 +746,7 @@
         
         // Cleanup when page unloads
         window.addEventListener('beforeunload', () => {
-            stopHLS();
+            // stopHLS();  // HLS disabled
             stopWebRTC();
         });
     </script>
