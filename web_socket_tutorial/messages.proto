@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package tutorial;
+
+message CameraSettings {
+  int32 brightness = 1;
+  string cameraName = 2;
+}
