@@ -22,7 +22,8 @@ class ZeroLatencyPublisher:
         
         """ Get the local IP address to construct the RTSP URL."""
         """static method to get local IP"""
-        local_ip = self.get_local_ip()
+        # local_ip = self.get_local_ip()
+        local_ip = "10.9.0.2"
         self.rtsp_url = f"rtsp://{local_ip}:8554/zerolatency"
         print(f"RTSP URL: {self.rtsp_url}")
         
@@ -175,7 +176,6 @@ class ZeroLatencyPublisher:
         
         while self.running:
             ret, frame = self.cap.read()
-            print(f"Frame read: {ret}")
             if not ret:
                 continue
             

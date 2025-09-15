@@ -123,8 +123,8 @@ SSH connection IP (`192.168.0.183`) is the same IP used for stream access from o
 ### Terminal 1: Publisher
 ```bash
 cd ~/Desktop/livefeed
-source app2/bin/activate
-python3 zero_latency_publisher.py --mediamtx-path /home/nextgen/Desktop/media2/mediamtx
+source opencv-env/bin/activate
+python3 zero_latency_publisher.py --mediamtx-path /home/nextgen/Desktop/mediamtx
 ```
 
 ### Terminal 2: Receiver (Optional)

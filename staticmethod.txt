@@ -1,8 +1,0 @@
-@staticmethod  # Added this line
-def get_local_ip():
-
-@staticmethod  # Added this line  
-def log(message):
-
-@staticmethod  # Added this line
-def check_mediamtx():

@@ -1,0 +1,115 @@
+
+● 4. Test the Setup
+
+  On Pi (10.9.0.2):
+  # Test connectivity to Windows
+  ping 10.9.0.1
+
+  # Start MediaMTX with proper config
+  ./mediamtx
+
+  # Run publisher
+  python zero_latency_publisher.py --mediamtx-path ./mediamtx
+
+
+
+cd ~/Desktop/livefeed
+source opencv-env/bin/activate
+python3 zero_latency_publisher.py --mediamtx-path /home/nextgen/Desktop/mediamtx
+
+
+  On Windows (10.9.0.1):
+  # Test connectivity to Pi
+  ping 10.9.0.2
+
+  # Test MediaMTX ports on Pi
+  telnet 10.9.0.2 8554  # RTSP
+  telnet 10.9.0.2 8888  # HLS
+  telnet 10.9.0.2 8889  # WebRTC
+
+  # Run Django
+  python manage.py runserver 8001
+
+  5. If Still Not Working
+
+  Check VPN routing:
+  # On Windows
+  route print | findstr 10.9.0.0
+
+  # On Pi
+  ip route | grep 10.9.0.0
+
+  Check firewall on Pi:
+  sudo ufw status
+  sudo ufw allow from 10.9.0.1 to any port 8554
+  sudo ufw allow from 10.9.0.1 to any port 8888
+  sudo ufw allow from 10.9.0.1 to any port 8889
+
+
+
+
+
+
+
+
+
+  
+  # Disable firewall
+  sudo ufw disable
+
+  # Reset all rules
+  sudo ufw --force reset
+
+  # Set better defaults
+  sudo ufw default deny incoming
+  sudo ufw default allow outgoing
+
+  # Allow SSH from local network
+  sudo ufw allow from 192.168.0.0/24 to any port 22
+
+  # Allow VPN
+  sudo ufw allow 1194/udp
+  sudo ufw allow in on tun0
+  sudo ufw allow out on tun0
+
+  # Allow MediaMTX only from Windows VPN IP
+  sudo ufw allow from 10.9.0.1 to any port 8554
+  sudo ufw allow from 10.9.0.1 to any port 8888
+  sudo ufw allow from 10.9.0.1 to any port 8889
+
+  # Re-enable
+  sudo ufw enable
+
+
+
+
+
+
+  ● You can ping but can't SSH to the VPN IP. The firewall is likely blocking SSH on the VPN interface.
+
+● Add SSH rule for VPN network:
+
+  # Allow SSH from entire VPN subnet
+  sudo ufw allow from 10.9.0.0/24 to any port 22
+
+  # Or specifically from Windows VPN IP
+  sudo ufw allow from 10.9.0.1 to any port 22
+
+  Check current rules:
+  sudo ufw status numbered
+
+  If SSH rule exists but still not working:
+
+  1. Check SSH is listening on VPN interface:
+  sudo netstat -tlnp | grep :22
+  2. Check SSH config allows VPN connections:
+  sudo nano /etc/ssh/sshd_config
+  2. Make sure it has:
+  ListenAddress 0.0.0.0
+  # or
+  ListenAddress 10.9.0.2
+  3. Restart SSH service:
+  sudo systemctl restart ssh
+
+  Test from Windows:
+  ssh nextgen@10.9.0.2

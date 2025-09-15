@@ -46,7 +46,12 @@ pip install -r requirements.txt
 ```bash
 python zero_latency_publisher.py --mediamtx-path "C:\path\to\mediamtx.exe"
 ```
-
+example 
+```bash
+cd ~/Desktop/livefeed
+source opencv-env/bin/activate
+python3 zero_latency_publisher.py --mediamtx-path /home/nextgen/Desktop/mediamtx
+```
 ### Command Line Options
 
 | Option | Short | Type | Default | Description |
