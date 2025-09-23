@@ -17,3 +17,10 @@ Install [Protocol buffers](https://github.com/protocolbuffers/protobuf/releases)
 
 ## How to Run 
 Run the server.py in one terminal and then client.py in another terminal, the custom brightnesss and camera name set the by the server should now the printed on the client console terminal
+
+
+  The key changes are:
+  - Replace response = await websocket.recv() with async for message in websocket:
+  - Add the brightness application function
+  - Add confirmation sending back to Django
+  - Wrap everything in a reconnection loop
