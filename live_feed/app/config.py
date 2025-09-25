@@ -7,8 +7,8 @@ This makes it easy to update network settings without hunting through multiple f
 # VPN Network Configuration
 class NetworkConfig:
     # VPN IP Addresses
-    WINDOWS_VPN_IP = "10.9.0.1"  # Windows machine VPN IP
-    PI_VPN_IP = "10.9.0.2"       # Raspberry Pi VPN IP
+    WINDOWS_VPN_IP = "192.168.0.149"  # Windows machine VPN IP
+    PI_VPN_IP = "192.168.0.183"       # Raspberry Pi VPN IP
     
     # MediaMTX Server Ports (running on Pi)
     RTSP_PORT = 8554
