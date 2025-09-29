@@ -9,6 +9,7 @@ import os
 
 import argparse
 from datetime import datetime
+from live_feed.app.config import NetworkConfig
 
 class ZeroLatencyPublisher:
     def __init__(self, mediamtx_path, camera_index, width, height, target_fps, bitrate, rtsp_url):
@@ -22,10 +23,10 @@ class ZeroLatencyPublisher:
         self.mediamtx_path = mediamtx_path
         
         """ Get the local IP address to construct the RTSP URL."""
-        """static method to get local IP"""
+        """Use configuration from NetworkConfig"""
         # local_ip = self.get_local_ip()
-        local_ip = "10.9.0.2"
-        self.rtsp_url = f"rtsp://{local_ip}:8554/zerolatency"
+        local_ip = NetworkConfig.PI_VPN_IP
+        self.rtsp_url = f"rtsp://{local_ip}:{NetworkConfig.RTSP_PORT}/{NetworkConfig.STREAM_NAME}"
         print(f"RTSP URL: {self.rtsp_url}")
         
         """ Initialize camera and ffmpeg process variables."""
