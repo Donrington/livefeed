@@ -10,9 +10,109 @@ import os
 import argparse
 from datetime import datetime
 from live_feed.app.config import NetworkConfig
+import asyncio
+from asyncio.exceptions import TimeoutError
+import websockets
+from websockets.exceptions import InvalidStatusCode
+from asyncio.exceptions import TimeoutError
+import queue
+import asyncio
+import threading
+from live_feed.messages import messages_pb2
+import logging
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(threadName)s] %(levelname)s: %(message)s"
+)
+log = logging.getLogger(__name__) 
+
+to_async_queue =  queue.Queue()   # main thread -> async thread
+cam_status = messages_pb2.CameraStatus()
+
+async def writer(ws: websockets.WebSocketClientProtocol, stop_event: asyncio.Event):
+    while not stop_event.is_set():
+        try: 
+            message = await asyncio.to_thread( to_async_queue.get, timeout=3) #timeout is needed to prevent blocking
+            await ws.send(message)
+            #print(f"Sent message: {message}")
+            to_async_queue.task_done()
+        except queue.Empty:
+            continue
+
+async def reader(ws: websockets.WebSocketClientProtocol, stop_event: asyncio.Event):
+    """
+    Reader coroutine to handle incoming messages from the WebSocket server.
+    """
+    while not stop_event.is_set():
+        try:
+            async for message in ws:
+                print(f"Received message: {message}")
+                # Process incoming messages here
+        except websockets.ConnectionClosed:
+            log.info("websocket connection closed")
+            break
+        except Exception as e:
+            log.info(f"Error in reader task: {e}")
+            break
+
+async def WebSocketHandler(stop_event: asyncio.Event ):
+    uri = f"ws://{NetworkConfig.PI_VPN_IP}:{NetworkConfig.WEBSOCKET_PORT}/ws/camera/"
+    log.info (f"connecting to {uri}")
+    while not stop_event.is_set():
+        try:
+            async with websockets.connect(uri) as ws:
+                log.info("WebSocket connected")
+                #read incoming messages as concurrent background task
+                reader_task = asyncio.create_task(reader(ws, stop_event))
+                writer_task = asyncio.create_task(writer(ws, stop_event))
+                done, pending = await asyncio.wait(
+                    {reader_task, writer_task, asyncio.create_task(stop_event.wait())},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                log.info("WebSocketHandler: Exiting main loop")
+                # If stopping, close the socket politely
+                if stop_event.is_set():
+                    await ws.close(code=1000)
+
+                # Cancel whatever is still pending
+                for t in pending:
+                    t.cancel()
+
+                # Surface unexpected exceptions from finished tasks
+                for t in done:
+                    try:
+                        await t
+                    except asyncio.CancelledError:
+                        pass
+                
+        except InvalidStatusCode as e:
+            log.error(f"Invalid status code: {e}")
+        except TimeoutError:
+            log.error("Connection timed out")
+        except Exception as e:
+            log.error(f"Connection error: {e}")
+        
+        log.info ("Reconnecting in 5 seconds...")
+        await asyncio.sleep(5)  
+
+def run_asyncio_loop(publisher ):
+    #wait until publisher is running before starting websocket
+    while not publisher.isRunning():
+        time.sleep(0.5)
+    log.info("started websocket thread")
+    stop_event = asyncio.Event()
+    try:
+        asyncio.run(WebSocketHandler(stop_event))
+    except KeyboardInterrupt:
+        log.info ("KeyboardInterrupt received, stopping...")
+        stop_event.set()
+
+
 
 class ZeroLatencyPublisher:
-    def __init__(self, mediamtx_path, camera_index, width, height, target_fps, bitrate, rtsp_url):
+    def __init__(self, mediamtx_path, ffmpeg_path, camera_index, width, height, target_fps, bitrate, rtsp_url):
         self.running = False
         self.camera_index = camera_index
         self.width = width
@@ -21,13 +121,17 @@ class ZeroLatencyPublisher:
         self.bitrate = bitrate
         self.rtsp_url = rtsp_url
         self.mediamtx_path = mediamtx_path
+        self.ffmpeg_path = ffmpeg_path
+        self.lock = threading.Lock()
+        self.cam_status = messages_pb2.CameraStatus()
+        self.cam_status.isConnected = False
+
         
         """ Get the local IP address to construct the RTSP URL."""
         """Use configuration from NetworkConfig"""
         # local_ip = self.get_local_ip()
         local_ip = NetworkConfig.PI_VPN_IP
         self.rtsp_url = f"rtsp://{local_ip}:{NetworkConfig.RTSP_PORT}/{NetworkConfig.STREAM_NAME}"
-        print(f"RTSP URL: {self.rtsp_url}")
         
         """ Initialize camera and ffmpeg process variables."""
         self.cap = None
@@ -40,7 +144,14 @@ class ZeroLatencyPublisher:
         atexit.register(self.stop)
         signal.signal(signal.SIGINT, self.signal_handler)
      
-     
+    def isRunning(self):
+        with self.lock:
+            return self.running
+        
+    def setRunning(self, value:bool):
+        with self.lock:
+            self.running = value
+            
     """"removed self from get_local_ip to make it a static method"""     
     @staticmethod 
     def get_local_ip():
@@ -51,14 +162,8 @@ class ZeroLatencyPublisher:
                 return s.getsockname()[0]
         except:
             return "localhost"
-        
-    @staticmethod   
-    def log(message):
-        """Static method to log messages with timestamp"""
-        timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
-        print(f"[{timestamp}] {message}")
-   
-   
+
+      
     @staticmethod     
     def check_mediamtx():
         try:
@@ -74,11 +179,11 @@ class ZeroLatencyPublisher:
     """"chnages self. to ZeroLatencyPublisher to make it a static method"""
     def start_mediamtx(self):
         if not os.path.exists(self.mediamtx_path):
-            ZeroLatencyPublisher.log(f"MediaMTX executable not found at {self.mediamtx_path}")
+            log.error(f"MediaMTX executable not found at {self.mediamtx_path}")
             return False
             
         try:
-            ZeroLatencyPublisher.log("Starting MediaMTX...")
+            log.info("Starting MediaMTX...")
             self.mediamtx_process = subprocess.Popen(
                 [self.mediamtx_path],
                 cwd=os.path.dirname(self.mediamtx_path),
@@ -90,29 +195,29 @@ class ZeroLatencyPublisher:
             for i in range(10):
                 time.sleep(1)
                 if ZeroLatencyPublisher.check_mediamtx():
-                    ZeroLatencyPublisher.log("MediaMTX started successfully")
+                    log.info("MediaMTX started successfully")
                     return True
-                ZeroLatencyPublisher.log(f"Waiting for MediaMTX to start... ({i+1}/10)")
+                log.info(f"Waiting for MediaMTX to start... ({i+1}/10)")
             
-            ZeroLatencyPublisher.log("MediaMTX failed to start within 10 seconds")
+            log.info("MediaMTX failed to start within 10 seconds")
             return False
             
         except Exception as e:
-            ZeroLatencyPublisher.log(f"Error starting MediaMTX: {e}")
+            log.error(f"Error starting MediaMTX: {e}")
             return False
     
     def stop_mediamtx(self):
         if self.mediamtx_process:
             try:
-                ZeroLatencyPublisher.log("Stopping MediaMTX...")
+                log.info("Stopping MediaMTX...")
                 self.mediamtx_process.terminate()
                 self.mediamtx_process.wait(timeout=5)
-                ZeroLatencyPublisher.log("MediaMTX stopped")
+                log.info("MediaMTX stopped")
             except subprocess.TimeoutExpired:
-                ZeroLatencyPublisher.log("Force killing MediaMTX...")
+                log.info("Force killing MediaMTX...")
                 self.mediamtx_process.kill()
             except Exception as e:
-                ZeroLatencyPublisher.log(f"Error stopping MediaMTX: {e}")
+                log.error(f"Error stopping MediaMTX: {e}")
             finally:
                 self.mediamtx_process = None
     
@@ -127,7 +232,7 @@ class ZeroLatencyPublisher:
         
     def setup_ffmpeg(self):
         cmd = [
-            'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
+            self.ffmpeg_path, '-y', '-hide_banner', '-loglevel', 'error',
             '-f', 'rawvideo', '-vcodec', 'rawvideo', '-pix_fmt', 'bgr24',
             '-s', f'{self.width}x{self.height}', '-r', str(self.target_fps), '-i', '-',
             '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency',
@@ -162,27 +267,28 @@ class ZeroLatencyPublisher:
     def start(self):
         
         """Added a Url log to indicate where the stream will be available"""
-        ZeroLatencyPublisher.log(f"Stream will be available at: {self.rtsp_url}")
+        log.info(f"Stream will be available at: {self.rtsp_url}")
         
         if not ZeroLatencyPublisher.check_mediamtx():
-            ZeroLatencyPublisher.log("MediaMTX not running, attempting to start...")
+            log.info("MediaMTX not running, attempting to start...")
             if not self.start_mediamtx():
-                ZeroLatencyPublisher.log("Failed to start MediaMTX")
+                log.error("Failed to start MediaMTX")
                 return
             
         self.setup_camera()
-        self.setup_ffmpeg()
+        self.setup_ffmpeg()        
+        self.setRunning(True)
+        log.info("Starting publishing frames to client")
         
-        self.running = True
-        ZeroLatencyPublisher.log("Publisher started")
-        
-        while self.running:
+        while self.isRunning():
             ret, frame = self.cap.read()
+            self.cam_status.isConnected = ret
             if not ret:
                 continue
-            
-            frame_with_timestamp = self.add_timestamp(frame)
-            
+            else:
+                to_async_queue.put(self.cam_status.SerializeToString()) # if full raises exception queue.Full
+        
+            frame_with_timestamp = self.add_timestamp(frame)    
             try:
                 self.ffmpeg_process.stdin.write(frame_with_timestamp.tobytes())
                 self.ffmpeg_process.stdin.flush()
@@ -196,10 +302,10 @@ class ZeroLatencyPublisher:
         sys.exit(0)
         
     def stop(self):
-        if not self.running:
+        if not self.isRunning():
             return
             
-        self.running = False
+        self.setRunning(False)
         
         if self.ffmpeg_process:
             self.ffmpeg_process.stdin.close()
@@ -210,13 +316,16 @@ class ZeroLatencyPublisher:
             cv2.destroyAllWindows()
             
         self.stop_mediamtx()
-        ZeroLatencyPublisher.log("Stopped")
+        log.info("Stopped publishing frames to client")
 
 def main():
     parser = argparse.ArgumentParser(description='Zero Latency RTSP Publisher')
     parser.add_argument('--mediamtx-path', '-m', 
                        required=True,
                        help='Path to the MediaMTX executable')
+    parser.add_argument('--ffmpeg-path', '-f', 
+                       required=True,
+                       help='Path to the ffmepg executable')
     parser.add_argument('--camera_index', '-c', 
                        type=int, 
                        default=0,
@@ -229,7 +338,7 @@ def main():
                        type=int, 
                        default=480,
                        help='Video height (default: 480)')
-    parser.add_argument('--fps', '-f', 
+    parser.add_argument('--fps', '-fps', 
                        type=int, 
                        default=30,
                        help='Target FPS (default: 30)')
@@ -244,6 +353,7 @@ def main():
     
     publisher = ZeroLatencyPublisher(
         args.mediamtx_path,
+        args.ffmpeg_path,
         args.camera_index,
         args.width,
         args.height,
@@ -252,10 +362,13 @@ def main():
         args.rtsp_url
     )
     
+    async_thread = threading.Thread(target=run_asyncio_loop, args=(publisher, ), daemon=True)
+    async_thread.start()
     publisher.start()
-
+   
 if __name__ == "__main__":
     main()
+
     
-    
+
     

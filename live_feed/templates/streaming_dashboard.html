@@ -723,14 +723,14 @@
                                     <div class="absolute -bottom-6 -right-6 h-16 w-16 rounded-full bg-gradient-to-r opacity-20 blur-xl from-cyan-500 to-blue-500"></div>
                                 </div>
 
-                                <!-- Stream Quality -->
+                                <!-- FPS Quality -->
                                 <div class="bg-slate-800/50 rounded-lg border border-purple-500/30 p-4 relative overflow-hidden">
                                     <div class="flex items-center justify-between mb-2">
-                                        <div class="text-sm text-slate-400">Stream Quality</div>
+                                        <div class="text-sm text-slate-400">FPS</div>
                                         <i class="fas fa-chart-line text-purple-500"></i>
                                     </div>
                                     <div class="text-2xl font-bold mb-1 text-slate-100">
-                                        <span id="quality-value">75</span>%
+                                        <span id="fps-value">0.0</span>
                                     </div>
                                     <div class="absolute -bottom-6 -right-6 h-16 w-16 rounded-full bg-gradient-to-r opacity-20 blur-xl from-purple-500 to-pink-500"></div>
                                 </div>
@@ -921,12 +921,16 @@
         let cameraWebSocket = null;           // Connection to Pi for controls
         let videoConnection = null;           // Connection to Pi for video
         let isConnected = false;              // Are we connected to Pi?
+        const fpsCounter = createFpsCounter(1000);
+
 
         // 2. GET BUTTONS AND DISPLAYS (like finding TV remote buttons)
         const connectBtn = document.getElementById('connect-btn');
         const statusBadge = document.getElementById('status-badge');
         const brightnessSlider = document.getElementById('camera-brightness-slider');
         const brightnessValue = document.getElementById('camera-brightness-value');
+        const fps_value = document.getElementById('fps-value');
+
 
         // Particle system
         class Particle {
@@ -1044,22 +1048,25 @@
                 }
             };
 
-            // When Pi sends us messages (like Pi saying "brightness changed")
+            // When Pi sends us messages 
             cameraWebSocket.onmessage = function(event) {
                 try {
-                    const message = JSON.parse(event.data);
-                    if (message.type === 'camera_settings_update') {
-                        // Update brightness slider to match Pi
-                        brightnessSlider.value = message.brightness;
-                        brightnessValue.textContent = message.brightness;
-                        console.log('📷 Pi updated brightness to:', message.brightness);
-                    }
-                } catch (e) {
-                    console.log('📡 Pi sent control data');
+                        const message = JSON.parse(event.data);
+                        if (message.type === 'connection_status' && typeof message.isConnected ) {
+                            //console.log('📶 Pi connection status:', message.isConnected);
+                            fpsCounter.tick();
+                        }
+                      
+                    } catch (e) {
+                    console.log(
+                        '❌ Error parsing message from Pi:',
+                        e,
+                        'Raw message:',
+                        event.data
+                    );
                 }
             };
 
-            // When connection closes (like Bluetooth disconnected)
             cameraWebSocket.onclose = function() {
                 console.log('❌ Lost connection to Pi controls');
                 if (window.userClickedConnect) {
@@ -1067,10 +1074,34 @@
                 }
             };
         }
-
+        //calculate fps 
+        function createFpsCounter(windowMs = 1000) {
+            // Stores arrival timestamps (ms, from performance.now())
+            const ts = [];
+        
+            function prune(now) {
+            // Remove anything older than the window
+            while (ts.length && now - ts[0] > windowMs) ts.shift();
+            }
+        
+            return {
+            // Call on each received frame/message
+            tick(now = performance.now()) {
+                ts.push(now);
+                prune(now);
+            },
+        
+            // Current frames-per-second over the last windowMs
+            fps(now = performance.now()) {
+                prune(now);
+                return ts.length * 1000 / windowMs;
+            },
+            };
+        }
+  
         // === SEND BRIGHTNESS CONTROL TO PI ===
         // Like adjusting TV brightness with remote control
-
+    
         function sendBrightnessToPI(brightness) {
             if (cameraWebSocket && cameraWebSocket.readyState === WebSocket.OPEN) {
                 const message = {
@@ -1107,6 +1138,12 @@
 
             // Show video area
             showVideoArea();
+
+            setInterval(() => {
+                const fps = fpsCounter.fps();
+                fps_value.textContent = fps.toFixed(1);
+            }, 250);
+
         }
 
         function showDisconnectedState() {
@@ -1364,10 +1401,6 @@
             // 2. Setup visual effects
             initParticles();
 
-            // 3. Setup time display
-            updateTime();
-            setInterval(updateTime, 1000);
-
             // 4. Set initial disconnected state
             showDisconnectedState();
 
@@ -1379,6 +1412,7 @@
                 console.log('❌ Could not get Pi info:', error);
             }
 
+         
             // 6. Auto-connect to Pi controls (but don't show video yet)
             connectToPiControls();
 
