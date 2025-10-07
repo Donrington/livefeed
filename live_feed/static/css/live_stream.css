@@ -1,0 +1,192 @@
+/* ============================================================================
+   LIVE STREAM STYLES
+   ============================================================================ */
+
+/* Theater mode */
+body.theater-mode .container {
+    max-width: 100% !important;
+}
+
+body.theater-mode .video-container {
+    max-height: 85vh;
+}
+
+/* Fullscreen mode */
+.video-container:fullscreen {
+    background: black;
+}
+
+.video-container:-webkit-full-screen {
+    background: black;
+}
+
+.video-container:-moz-full-screen {
+    background: black;
+}
+
+/* Video player controls */
+.video-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+    padding: 60px 20px 20px;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    z-index: 10;
+}
+
+.video-container:hover .video-controls {
+    transform: translateY(0);
+}
+
+.video-container.show-controls .video-controls {
+    transform: translateY(0);
+}
+
+/* Progress bar */
+.progress-container {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    cursor: pointer;
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.progress-handle {
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.progress-container:hover .progress-handle {
+    opacity: 1;
+}
+
+/* Volume slider */
+.volume-slider {
+    width: 0;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    overflow: hidden;
+    transition: width 0.3s;
+    cursor: pointer;
+    position: relative;
+}
+
+.volume-control:hover .volume-slider {
+    width: 80px;
+}
+
+.volume-fill {
+    height: 100%;
+    background: white;
+    border-radius: 3px;
+    transition: width 0.1s;
+}
+
+/* Chat */
+.chat-container {
+    height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.chat-message {
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.chat-message:hover {
+    background: rgba(100, 116, 139, 0.1);
+}
+
+.chat-message .username {
+    font-weight: 600;
+    color: var(--primary-color);
+    cursor: pointer;
+}
+
+.chat-message .message {
+    color: rgb(226, 232, 240);
+    word-wrap: break-word;
+}
+
+/* Loading animation */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.1); }
+}
+
+.pulse-dot {
+    animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Quality selector */
+.quality-menu {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: var(--radius);
+    padding: 8px 0;
+    margin-bottom: 8px;
+    min-width: 120px;
+    display: none;
+    backdrop-filter: blur(10px);
+}
+
+.quality-menu.show {
+    display: block;
+}
+
+.quality-option {
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+    color: rgb(226, 232, 240);
+    font-size: 0.875rem;
+}
+
+.quality-option:hover {
+    background: rgba(148, 163, 184, 0.1);
+}
+
+.quality-option.active {
+    color: var(--primary-color);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .chat-sidebar {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .video-controls {
+        padding: 40px 12px 12px;
+    }
+}

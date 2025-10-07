@@ -68,7 +68,11 @@ ROOT_URLCONF = 'live_feed.urls'
 
 STATIC_URL = '/static/'
 # Static files (CSS, JavaScript, Images)
-STATICFILES_DIRS = [ BASE_DIR / 'Static', BASE_DIR / 'Staticfiles' ]
+# Updated to use the new modular static files structure
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',  # App-level static files (new modular structure)
+]
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # For production collectstatic
 
 TEMPLATES = [
     {
@@ -129,11 +133,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

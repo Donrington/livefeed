@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Security Surveillance{% endblock %}</title>
+
+    <!-- External Libraries -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    {% block extra_head %}{% endblock %}
+
+    <!-- Base CSS -->
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+
+    <!-- Page-specific CSS -->
+    {% block css %}{% endblock %}
+</head>
+<body class="min-h-screen bg-gradient-to-br from-black to-slate-900 text-slate-100">
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="container mx-auto p-4">
+        <!-- Header -->
+        <header class="flex items-center justify-between py-4 border-b border-slate-700/50 mb-6">
+            <div class="flex items-center space-x-3">
+                <!-- Hamburger Menu (Mobile) -->
+                <div class="hamburger" id="hamburger-menu" onclick="toggleSidebar()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+
+                <i class="{% block header_icon %}fas fa-shield-alt{% endblock %} text-cyan-500 text-2xl"></i>
+                <span class="text-xl font-bold text-gradient header-title">{% block header_title %}NEXTGEN SURVEILLANCE{% endblock %}</span>
+            </div>
+
+            <div class="flex items-center space-x-2 md:space-x-4">
+                {% block header_actions %}
+                <!-- Connection Status -->
+                <div id="status-badge" class="badge offline">
+                    <div class="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                    <span class="hidden sm:inline">NOT CONNECTED</span>
+                    <span class="sm:hidden">OFFLINE</span>
+                </div>
+
+                <!-- Current Time -->
+                <div class="text-xs md:text-sm text-slate-400 font-mono" id="current-time">00:00:00</div>
+                {% endblock %}
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <div class="grid grid-cols-12 gap-6">
+            <!-- Sidebar -->
+            {% include 'includes/sidebar.html' %}
+
+            <!-- Main Content Area -->
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Base JavaScript -->
+    <script src="{% static 'js/base.js' %}"></script>
+
+    <!-- Page-specific JavaScript -->
+    {% block javascript %}{% endblock %}
+</body>
+</html>
