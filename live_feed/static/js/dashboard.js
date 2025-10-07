@@ -89,7 +89,7 @@ function toggleRecording() {
 }
 
 // Connect individual camera
-function connectCamera(cameraId, event) {
+async function connectCamera(cameraId, event) {
     console.log(`🔌 Connecting to Camera ${cameraId}...`);
 
     // Add ripple effect to button
@@ -97,23 +97,78 @@ function connectCamera(cameraId, event) {
     button.classList.add('clicked');
     setTimeout(() => button.classList.remove('clicked'), 600);
 
-    // Hide the overlay with delay for animation
-    const overlay = document.getElementById(`overlay-${cameraId}`);
-    setTimeout(() => {
-        overlay.classList.add('hidden');
-    }, 200);
+    try {
+        // Fetch stream configuration from API
+        const response = await fetch('/api/status/');
+        const config = await response.json();
 
-    // Show the video element
-    const video = document.getElementById(`video-${cameraId}`);
-    setTimeout(() => {
-        video.classList.remove('hidden');
-    }, 300);
+        console.log('Stream config:', config);
 
-    console.log(`✅ Camera ${cameraId} connected`);
+        // Get video element
+        const video = document.getElementById(`video-${cameraId}`);
+
+        // Connect using WebRTC (preferred for low latency)
+        if (config.webrtc_url) {
+            await connectVideoWebRTC(video, config.webrtc_url, cameraId);
+        } else {
+            throw new Error('No stream URL available');
+        }
+
+        // Hide overlay and show video on success
+        const overlay = document.getElementById(`overlay-${cameraId}`);
+        setTimeout(() => {
+            overlay.classList.add('hidden');
+            video.classList.remove('hidden');
+        }, 300);
+
+        console.log(`✅ Camera ${cameraId} connected successfully`);
+    } catch (error) {
+        console.error(`❌ Failed to connect Camera ${cameraId}:`, error);
+        alert(`Failed to connect to camera: ${error.message}`);
+    }
+}
+
+// WebRTC connection for video element
+async function connectVideoWebRTC(videoElement, webrtcUrl, cameraId) {
+    console.log(`📡 Connecting Camera ${cameraId} via WebRTC...`);
+
+    const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    pc.ontrack = (event) => {
+        console.log(`✅ Camera ${cameraId} stream received`);
+        videoElement.srcObject = event.streams[0];
+        videoElement.play().catch(e => console.error('Play error:', e));
+    };
+
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.addTransceiver('audio', { direction: 'recvonly' });
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    const response = await fetch(webrtcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/sdp' },
+        body: offer.sdp
+    });
+
+    if (!response.ok) {
+        throw new Error(`WebRTC connection failed: ${response.statusText}`);
+    }
+
+    const answer = await response.text();
+    await pc.setRemoteDescription({
+        type: 'answer',
+        sdp: answer
+    });
+
+    return pc;
 }
 
 // Connect single camera view
-function connectSingleCamera(event) {
+async function connectSingleCamera(event) {
     console.log('🔌 Connecting to single camera view...');
 
     // Add ripple effect to button
@@ -121,19 +176,35 @@ function connectSingleCamera(event) {
     button.classList.add('clicked');
     setTimeout(() => button.classList.remove('clicked'), 600);
 
-    // Hide the overlay with delay for animation
-    const overlay = document.getElementById('overlay-single');
-    setTimeout(() => {
-        overlay.classList.add('hidden');
-    }, 200);
+    try {
+        // Fetch stream configuration from API
+        const response = await fetch('/api/status/');
+        const config = await response.json();
 
-    // Show the video element
-    const video = document.getElementById('video-single');
-    setTimeout(() => {
-        video.classList.remove('hidden');
-    }, 300);
+        console.log('Stream config:', config);
 
-    console.log('✅ Single camera connected');
+        // Get video element
+        const video = document.getElementById('video-single');
+
+        // Connect using WebRTC (preferred for low latency)
+        if (config.webrtc_url) {
+            await connectVideoWebRTC(video, config.webrtc_url, 'single');
+        } else {
+            throw new Error('No stream URL available');
+        }
+
+        // Hide overlay and show video on success
+        const overlay = document.getElementById('overlay-single');
+        setTimeout(() => {
+            overlay.classList.add('hidden');
+            video.classList.remove('hidden');
+        }, 300);
+
+        console.log('✅ Single camera connected successfully');
+    } catch (error) {
+        console.error('❌ Failed to connect single camera:', error);
+        alert(`Failed to connect to camera: ${error.message}`);
+    }
 }
 
 // Connect to camera system

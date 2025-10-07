@@ -21,10 +21,10 @@ def analytics(request):
     # Using the new modular template
     return render(request, 'analytics.html')
 
-def live_stream(request):
-    """Sub view to serve the Live Stream page"""
+def recordings(request):
+    """View to serve the Recordings page"""
     # Using the new modular template
-    return render(request, 'live_stream.html')
+    return render(request, 'recordings.html')
 
 def stream_status(request):
     """API endpoint to provide stream configuration and status"""
