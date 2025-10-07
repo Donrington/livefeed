@@ -3,5 +3,5 @@ syntax = "proto3";
 package tutorial;
 
 message CameraStatus {
-  string isConnected = 1;
+  bool isConnected = 1;
 }

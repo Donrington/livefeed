@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stream Dashboard</title>
+
+    <!-- External Libraries -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        :root {
+            --radius: 0.625rem;
+            --primary-color: #06b6d4;
+            --secondary-color: #3b82f6;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --purple-color: #8b5cf6;
+            --pink-color: #ec4899;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            height: 100vh;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom animations */
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes spin-slower {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes ping {
+            75%, 100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        .animate-spin-slow {
+            animation: spin-slow 3s linear infinite;
+        }
+
+        .animate-spin-slower {
+            animation: spin-slower 4s linear infinite;
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .animate-ping {
+            animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        /* Particle canvas */
+        #particle-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+
+        .loading-spinner {
+            position: relative;
+            width: 96px;
+            height: 96px;
+        }
+
+        .loading-spinner div {
+            position: absolute;
+            border-radius: 50%;
+            border: 4px solid transparent;
+        }
+
+        .loading-spinner div:nth-child(1) {
+            border-color: rgba(6, 182, 212, 0.3);
+            animation: ping 1s infinite;
+        }
+
+        .loading-spinner div:nth-child(2) {
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            border-top-color: #06b6d4;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-spinner div:nth-child(3) {
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            bottom: 16px;
+            border-right-color: #8b5cf6;
+            animation: spin-slow 1s linear infinite;
+        }
+
+        .loading-spinner div:nth-child(4) {
+            top: 24px;
+            left: 24px;
+            right: 24px;
+            bottom: 24px;
+            border-bottom-color: #3b82f6;
+            animation: spin-slower 1s linear infinite;
+        }
+
+        .loading-spinner div:nth-child(5) {
+            top: 32px;
+            left: 32px;
+            right: 32px;
+            bottom: 32px;
+            border-left-color: #10b981;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Glass effect */
+        .glass {
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        /* Button styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            border: 1px solid transparent;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: rgb(148, 163, 184);
+            border: 1px solid transparent;
+        }
+
+        .btn-ghost:hover {
+            background: rgba(148, 163, 184, 0.1);
+            color: rgb(226, 232, 240);
+        }
+
+        .btn-outline {
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid rgb(51, 65, 85);
+            color: rgb(226, 232, 240);
+        }
+
+        .btn-outline:hover {
+            background: rgba(51, 65, 85, 0.7);
+        }
+
+        .btn-outline.active {
+            border-color: var(--primary-color);
+            background: rgba(6, 182, 212, 0.2);
+            color: var(--primary-color);
+        }
+
+        .btn-outline.destructive {
+            border-color: rgb(127, 29, 29);
+            background: rgba(220, 38, 38, 0.2);
+            color: rgb(248, 113, 113);
+        }
+
+        .btn-outline.destructive:hover {
+            background: rgba(220, 38, 38, 0.3);
+        }
+
+        /* Connect button */
+        .connect-btn {
+            width: 128px;
+            height: 128px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 1.125rem;
+            z-index: 20;
+            pointer-events: auto;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+
+        .connect-btn.connected {
+            background: var(--success-color);
+            box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.25);
+        }
+
+        .connect-btn.connected:hover {
+            background: #059669;
+        }
+
+        .connect-btn.disconnected {
+            background: var(--error-color);
+            box-shadow: 0 4px 14px 0 rgba(239, 68, 68, 0.25);
+        }
+
+        .connect-btn.disconnected:hover {
+            background: #dc2626;
+        }
+
+        .connect-btn.connecting {
+            animation: pulse 1s infinite;
+        }
+
+        .connect-btn .spinner {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 4px solid transparent;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Connect button overlay transitions */
+        #connect-btn-overlay {
+            transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+        }
+
+        #connect-btn-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        /* Progress bars */
+        .progress {
+            width: 100%;
+            height: 6px;
+            background: rgb(51, 65, 85);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        .progress-bar.cyan {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+        }
+
+        .progress-bar.green {
+            background: linear-gradient(to right, var(--success-color), #059669);
+        }
+
+        .progress-bar.blue {
+            background: linear-gradient(to right, var(--secondary-color), #1d4ed8);
+        }
+
+        .progress-bar.red {
+            background: linear-gradient(to right, var(--error-color), #dc2626);
+        }
+
+        /* Slider */
+        .slider {
+            width: 100%;
+            height: 6px;
+            background: rgb(51, 65, 85);
+            border-radius: 3px;
+            outline: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        /* Switch */
+        .switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: rgb(51, 65, 85);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .switch.active {
+            background: var(--primary-color);
+        }
+
+        .switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .switch.active::after {
+            transform: translateX(20px);
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border: 1px solid;
+        }
+
+        .badge.live {
+            background: rgba(16, 185, 129, 0.2);
+            color: rgb(52, 211, 153);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .badge.offline {
+            background: rgba(239, 68, 68, 0.2);
+            color: rgb(248, 113, 113);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        /* Avatar */
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgb(51, 65, 85);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            border-radius: 4px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #0891b2, #2563eb);
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        /* Firefox scrollbar */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #06b6d4 rgba(15, 23, 42, 0.8);
+        }
+
+        /* Chat scroll container */
+        .chat-container {
+            height: 192px;
+            overflow-y: auto;
+        }
+
+        /* Custom scroll areas */
+        .custom-scroll {
+            overflow-y: auto;
+            max-height: 100vh;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 3px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            border-radius: 3px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #0891b2, #7c3aed);
+            box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -100%;
+                width: 250px;
+                height: 100vh;
+                transition: left 0.3s;
+                z-index: 40;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 30;
+            }
+        }
+
+        /* Utility classes */
+        .text-gradient {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-black to-slate-900 text-slate-100 relative overflow-hidden">
+    <!-- Background particle effect -->
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="flex flex-col items-center">
+            <div class="loading-spinner">
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+            </div>
+            <div class="mt-4 text-cyan-500 font-mono text-sm tracking-wider">LIVE STREAM INITIALIZING</div>
+        </div>
+    </div>
+
+    <!-- Mobile sidebar overlay -->
+    <div id="sidebar-overlay" class="overlay hidden"></div>
+
+    <div class="container mx-auto p-4 relative z-10 custom-scroll">
+        <!-- Header -->
+        <header class="flex items-center justify-between py-4 border-b border-slate-700/50 mb-6">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-video text-cyan-500 text-2xl"></i>
+                <span class="text-xl font-bold text-gradient">LIVE STREAM</span>
+            </div>
+
+            <div class="flex items-center space-x-6">
+                <!-- Search box (hidden on mobile) -->
+                <div class="hidden md:flex items-center space-x-1 glass rounded-full px-3 py-1.5">
+                    <i class="fas fa-search text-slate-400 text-sm"></i>
+                    <input
+                        type="text"
+                        placeholder="Search streams..."
+                        class="bg-transparent border-none outline-none text-sm w-40 placeholder:text-slate-500 text-white"
+                    />
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <!-- Notifications -->
+                    <button class="btn btn-ghost p-2 relative" title="Notifications">
+                        <i class="fas fa-bell text-lg"></i>
+                        <span class="absolute -top-1 -right-1 h-2 w-2 bg-cyan-500 rounded-full animate-pulse"></span>
+                    </button>
+
+                    <!-- Theme toggle -->
+                    <button class="btn btn-ghost p-2" id="theme-toggle" title="Toggle theme">
+                        <i class="fas fa-moon text-lg"></i>
+                    </button>
+
+                    <!-- Mobile menu -->
+                    <button class="btn btn-ghost p-2 md:hidden" id="mobile-menu-toggle">
+                        <i class="fas fa-bars text-lg"></i>
+                    </button>
+
+                    <!-- Avatar -->
+                    <div class="avatar">ST</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <div class="grid grid-cols-12 gap-6">
+            <!-- Sidebar -->
+            <div id="sidebar" class="sidebar col-span-12 md:col-span-3 lg:col-span-2">
+                <div class="glass rounded-lg h-full">
+                    <div class="p-4 custom-scroll max-h-screen">
+                        <nav class="space-y-2">
+                            <button class="btn btn-ghost w-full justify-start bg-slate-800/70 text-cyan-400">
+                                <i class="fas fa-th-large mr-2"></i>
+                                Dashboard
+                            </button>
+                            <button class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-video mr-2"></i>
+                                Live Stream
+                            </button>
+                            <button class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-users mr-2"></i>
+                                Audience
+                            </button>
+                            <button class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-chart-line mr-2"></i>
+                                Analytics
+                            </button>
+                            <button class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-comments mr-2"></i>
+                                Chat
+                            </button>
+                            <button class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-cog mr-2"></i>
+                                Settings
+                            </button>
+                        </nav>
+
+                        <div class="mt-8 pt-6 border-t border-slate-700/50">
+                            <div class="text-xs text-slate-500 mb-2 font-mono">STREAM STATUS</div>
+                            <div class="space-y-3">
+                                <!-- Connection status -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <div class="text-xs text-slate-400">Connection</div>
+                                        <div class="text-xs text-slate-400"><span id="connection-percent">0</span>%</div>
+                                    </div>
+                                    <div class="progress">
+                                        <div id="connection-bar" class="progress-bar red" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Quality status -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <div class="text-xs text-slate-400">Quality</div>
+                                        <div class="text-xs text-slate-400"><span id="quality-percent">75</span>%</div>
+                                    </div>
+                                    <div class="progress">
+                                        <div id="quality-bar" class="progress-bar cyan" style="width: 75%"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Health status -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <div class="text-xs text-slate-400">Health</div>
+                                        <div class="text-xs text-slate-400"><span id="health-percent">92</span>%</div>
+                                    </div>
+                                    <div class="progress">
+                                        <div id="health-bar" class="progress-bar blue" style="width: 92%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main dashboard -->
+            <div class="col-span-12 md:col-span-9 lg:col-span-7">
+                <div class="grid gap-6 custom-scroll max-h-screen">
+                    <!-- Stream Control Center -->
+                    <div class="glass rounded-lg overflow-hidden">
+                        <div class="border-b border-slate-700/50 p-4">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-slate-100 flex items-center font-semibold">
+                                    <i class="fas fa-video text-cyan-500 mr-2"></i>
+                                    Stream Control Center
+                                </h2>
+                                <div class="flex items-center space-x-2">
+                                    <div id="status-badge" class="badge offline">
+                                        <div class="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                                        NOT CONNECTED
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <!-- Video Stream Area -->
+                            <div class="relative mb-6">
+                                <div class="aspect-video bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden relative">
+                                    <div id="video-content" class="w-full h-full flex items-center justify-center">
+                                        <video id="video-stream" class="w-full h-full object-cover hidden" controls autoplay muted></video>
+                                        <div id="no-stream-placeholder" class="text-center">
+                                            <i class="fas fa-video-slash text-slate-500 text-5xl mb-2"></i>
+                                            <p class="text-slate-400">No Stream Active</p>
+                                            <p class="text-xs text-slate-600">Connect to start streaming</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Connect Button Overlay -->
+                                    <div id="connect-btn-overlay" class="absolute inset-0 flex items-center justify-center">
+                                        <button id="connect-btn" class="connect-btn disconnected">
+                                            <i class="fas fa-play text-2xl"></i>
+                                            <span class="text-sm">Connect</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Stream Controls -->
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                <button id="mic-btn" class="btn btn-outline h-auto py-3 px-3 flex flex-col items-center justify-center space-y-1 w-full active">
+                                    <i class="fas fa-microphone text-lg"></i>
+                                    <span class="text-xs">Mute</span>
+                                </button>
+                                <button id="video-btn" class="btn btn-outline h-auto py-3 px-3 flex flex-col items-center justify-center space-y-1 w-full active">
+                                    <i class="fas fa-video text-lg"></i>
+                                    <span class="text-xs">Camera On</span>
+                                </button>
+                                <button class="btn btn-outline h-auto py-3 px-3 flex flex-col items-center justify-center space-y-1 w-full">
+                                    <i class="fas fa-cog text-lg"></i>
+                                    <span class="text-xs">Settings</span>
+                                </button>
+                                <button id="stop-btn" class="btn btn-outline destructive h-auto py-3 px-3 flex flex-col items-center justify-center space-y-1 w-full">
+                                    <i class="fas fa-stop text-lg"></i>
+                                    <span class="text-xs">Stop</span>
+                                </button>
+                            </div>
+
+                            <!-- Stream Stats -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <!-- Viewers -->
+                                <div class="bg-slate-800/50 rounded-lg border border-cyan-500/30 p-4 relative overflow-hidden">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-sm text-slate-400">Viewers</div>
+                                        <i class="fas fa-users text-cyan-500"></i>
+                                    </div>
+                                    <div class="text-2xl font-bold mb-1 text-slate-100">
+                                        <span id="viewer-count">0</span>
+                                    </div>
+                                    <div class="absolute -bottom-6 -right-6 h-16 w-16 rounded-full bg-gradient-to-r opacity-20 blur-xl from-cyan-500 to-blue-500"></div>
+                                </div>
+
+                                <!-- FPS Quality -->
+                                <div class="bg-slate-800/50 rounded-lg border border-purple-500/30 p-4 relative overflow-hidden">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-sm text-slate-400">FPS</div>
+                                        <i class="fas fa-chart-line text-purple-500"></i>
+                                    </div>
+                                    <div class="text-2xl font-bold mb-1 text-slate-100">
+                                        <span id="fps-value">0.0</span>
+                                    </div>
+                                    <div class="absolute -bottom-6 -right-6 h-16 w-16 rounded-full bg-gradient-to-r opacity-20 blur-xl from-purple-500 to-pink-500"></div>
+                                </div>
+
+                                <!-- Connection Health -->
+                                <div class="bg-slate-800/50 rounded-lg border border-blue-500/30 p-4 relative overflow-hidden">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-sm text-slate-400">Connection Health</div>
+                                        <i class="fas fa-wifi text-blue-500"></i>
+                                    </div>
+                                    <div class="text-2xl font-bold mb-1 text-slate-100">
+                                        <span id="health-value">92</span>%
+                                    </div>
+                                    <div class="absolute -bottom-6 -right-6 h-16 w-16 rounded-full bg-gradient-to-r opacity-20 blur-xl from-blue-500 to-indigo-500"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat and Activity -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Live Chat -->
+                        <div class="glass rounded-lg">
+                            <div class="p-4 border-b border-slate-700/50">
+                                <h3 class="text-slate-100 flex items-center text-base font-medium">
+                                    <i class="fas fa-comments text-blue-500 mr-2"></i>
+                                    Live Chat
+                                </h3>
+                            </div>
+                            <div class="p-4">
+                                <div id="chat-messages" class="chat-container space-y-3">
+                                    <div class="text-center text-slate-500 py-8">
+                                        <i class="fas fa-comments text-4xl mb-2 opacity-50"></i>
+                                        <p>Start streaming to enable chat</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="border-t border-slate-700/50 p-4">
+                                <div class="flex items-center w-full space-x-2">
+                                    <input
+                                        id="chat-input"
+                                        type="text"
+                                        placeholder="Type a message..."
+                                        class="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-md px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-cyan-500 text-white"
+                                        disabled
+                                    />
+                                    <button id="send-chat" class="btn p-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-md" disabled>
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stream Activity -->
+                        <div class="glass rounded-lg">
+                            <div class="p-4 border-b border-slate-700/50">
+                                <h3 class="text-slate-100 flex items-center text-base font-medium">
+                                    <i class="fas fa-chart-line text-amber-500 mr-2"></i>
+                                    Stream Activity
+                                </h3>
+                            </div>
+                            <div class="p-4">
+                                <div id="activity-list" class="space-y-3">
+                                    <div class="text-center text-slate-500 py-8">
+                                        <i class="fas fa-chart-line text-4xl mb-2 opacity-50"></i>
+                                        <p>No activity yet</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right sidebar - Stream Info -->
+            <div class="col-span-12 lg:col-span-3">
+                <div class="grid gap-6 custom-scroll max-h-screen">
+                    <!-- System time -->
+                    <div class="glass rounded-lg overflow-hidden">
+                        <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-6 border-b border-slate-700/50">
+                            <div class="text-center">
+                                <div class="text-xs text-slate-500 mb-1 font-mono">STREAM TIME</div>
+                                <div id="stream-time" class="text-3xl font-mono text-cyan-400 mb-1">00:00:00</div>
+                                <div id="current-date" class="text-sm text-slate-400">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="bg-slate-800/50 rounded-md p-3 border border-slate-700/50">
+                                    <div class="text-xs text-slate-500 mb-1">Status</div>
+                                    <div id="status-text" class="text-sm font-mono text-slate-200">NOT CONNECTED</div>
+                                </div>
+                                <div class="bg-slate-800/50 rounded-md p-3 border border-slate-700/50">
+                                    <div class="text-xs text-slate-500 mb-1">Viewers</div>
+                                    <div id="viewer-count-2" class="text-sm font-mono text-slate-200">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stream Settings -->
+                    <div class="glass rounded-lg">
+                        <div class="p-4 border-b border-slate-700/50">
+                            <h3 class="text-slate-100 text-base font-medium">Stream Settings</h3>
+                        </div>
+                        <div class="p-4">
+                            <div class="space-y-4">
+                                <!-- Auto-record -->
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-video text-cyan-500 mr-2"></i>
+                                        <label class="text-sm text-slate-400">Auto-record</label>
+                                    </div>
+                                    <div class="switch" onclick="toggleSwitch(this)"></div>
+                                </div>
+
+                                <!-- Private Mode -->
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-shield-alt text-cyan-500 mr-2"></i>
+                                        <label class="text-sm text-slate-400">Private Mode</label>
+                                    </div>
+                                    <div class="switch" onclick="toggleSwitch(this)"></div>
+                                </div>
+
+                                <!-- Notifications -->
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-bell text-cyan-500 mr-2"></i>
+                                        <label class="text-sm text-slate-400">Notifications</label>
+                                    </div>
+                                    <div class="switch active" onclick="toggleSwitch(this)"></div>
+                                </div>
+
+                                <!-- Stream Quality Slider -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="text-sm text-slate-400">Stream Quality</label>
+                                        <span id="quality-slider-value" class="text-cyan-400 text-sm">75%</span>
+                                    </div>
+                                    <input type="range" id="quality-slider" class="slider" min="0" max="100" value="75">
+                                </div>
+
+                                <!-- Camera Brightness Slider -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="text-sm text-slate-400">Camera Brightness</label>
+                                        <span id="camera-brightness-value" class="text-cyan-400 text-sm">520</span>
+                                    </div>
+                                    <input type="range" id="camera-brightness-slider" class="slider" min="0" max="1000" value="520">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stream URLs -->
+                    <div class="glass rounded-lg">
+                        <div class="p-4 border-b border-slate-700/50">
+                            <h3 class="text-slate-100 text-base font-medium">Stream URLs</h3>
+                        </div>
+                        <div class="p-4">
+                            <div class="space-y-3">
+                                <div class="bg-slate-800/50 rounded-md p-3 border border-slate-700/50">
+                                    <div class="text-xs text-slate-500 mb-1">HLS (Web)</div>
+                                    <div class="text-xs font-mono text-cyan-400 break-all" id="hls-url">Loading...</div>
+                                </div>
+                                <div class="bg-slate-800/50 rounded-md p-3 border border-slate-700/50">
+                                    <div class="text-xs text-slate-500 mb-1">RTSP (VLC)</div>
+                                    <div class="text-xs font-mono text-cyan-400 break-all" id="rtsp-url">Loading...</div>
+                                </div>
+                                <div class="bg-slate-800/50 rounded-md p-3 border border-slate-700/50">
+                                    <div class="text-xs text-slate-500 mb-1">WebRTC</div>
+                                    <div class="text-xs font-mono text-cyan-400 break-all" id="webrtc-url">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === SIMPLE DASHBOARD SETUP ===
+        // Think of this as your "remote control" for the Pi camera
+
+        // 1. VARIABLES (like boxes to store things)
+        let cameraWebSocket = null;           // Connection to Pi for controls
+        let videoConnection = null;           // Connection to Pi for video
+        let isConnected = false;              // Are we connected to Pi?
+        const fpsCounter = createFpsCounter(1000);
+
+
+        // 2. GET BUTTONS AND DISPLAYS (like finding TV remote buttons)
+        const connectBtn = document.getElementById('connect-btn');
+        const statusBadge = document.getElementById('status-badge');
+        const brightnessSlider = document.getElementById('camera-brightness-slider');
+        const brightnessValue = document.getElementById('camera-brightness-value');
+        const fps_value = document.getElementById('fps-value');
+
+
+        // Particle system
+        class Particle {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = (Math.random() - 0.5) * 0.5;
+                this.speedY = (Math.random() - 0.5) * 0.5;
+                this.color = `rgba(${Math.floor(Math.random() * 100) + 100}, ${Math.floor(Math.random() * 100) + 150}, ${Math.floor(Math.random() * 55) + 200}, ${Math.random() * 0.5 + 0.2})`;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (this.x > this.canvas.width) this.x = 0;
+                if (this.x < 0) this.x = this.canvas.width;
+                if (this.y > this.canvas.height) this.y = 0;
+                if (this.y < 0) this.y = this.canvas.height;
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Initialize particles
+        function initParticles() {
+            const canvas = document.getElementById('particle-canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const particleCount = 100;
+
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle(canvas));
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                for (const particle of particles) {
+                    particle.update();
+                    particle.draw(ctx);
+                }
+
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            });
+        }
+
+        // Format time functions
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+
+            if (hours > 0) {
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Update time display (simplified - no date display needed)
+        function updateTime() {
+            // Time display removed for simplicity
+            console.log('Dashboard time updated:', new Date().toLocaleTimeString());
+        }
+
+
+        // === STEP 1: CONNECT TO PI FOR CAMERA CONTROLS ===
+        // Like connecting your phone to a Bluetooth speaker
+        function connectToPiControls() {
+            console.log('🔌 Connecting to Pi for camera controls...');
+
+            const wsUrl = `ws://${window.location.host}/ws/camera/`;
+            cameraWebSocket = new WebSocket(wsUrl);
+
+            // When connection opens (like Bluetooth connected)
+            cameraWebSocket.onopen = function() {
+                console.log('✅ Connected to Pi for controls!');
+                if (window.userClickedConnect) {
+                    showConnectedState();
+                }
+            };
+
+            // When Pi sends us messages 
+            cameraWebSocket.onmessage = function(event) {
+                try {
+                        const message = JSON.parse(event.data);
+                        if (message.type === 'connection_status' && typeof message.isConnected ) {
+                            //console.log('📶 Pi connection status:', message.isConnected);
+                            fpsCounter.tick();
+                        }
+                      
+                    } catch (e) {
+                    console.log(
+                        '❌ Error parsing message from Pi:',
+                        e,
+                        'Raw message:',
+                        event.data
+                    );
+                }
+            };
+
+            cameraWebSocket.onclose = function() {
+                console.log('❌ Lost connection to Pi controls');
+                if (window.userClickedConnect) {
+                    showDisconnectedState();
+                }
+            };
+        }
+        //calculate fps 
+        function createFpsCounter(windowMs = 1000) {
+            // Stores arrival timestamps (ms, from performance.now())
+            const ts = [];
+        
+            function prune(now) {
+            // Remove anything older than the window
+            while (ts.length && now - ts[0] > windowMs) ts.shift();
+            }
+        
+            return {
+            // Call on each received frame/message
+            tick(now = performance.now()) {
+                ts.push(now);
+                prune(now);
+            },
+        
+            // Current frames-per-second over the last windowMs
+            fps(now = performance.now()) {
+                prune(now);
+                return ts.length * 1000 / windowMs;
+            },
+            };
+        }
+  
+        // === SEND BRIGHTNESS CONTROL TO PI ===
+        // Like adjusting TV brightness with remote control
+    
+        function sendBrightnessToPI(brightness) {
+            if (cameraWebSocket && cameraWebSocket.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'update_camera_settings',
+                    brightness: brightness
+                };
+                cameraWebSocket.send(JSON.stringify(message));
+                console.log('🔆 Sent brightness ' + brightness + ' to Pi');
+            } else {
+                console.log('❌ Cannot send brightness - not connected to Pi');
+            }
+        }
+
+        // Simple activity logging
+        function addActivity(title, time, description, type) {
+            // Simple console logging for now
+            console.log(`[${type.toUpperCase()}] ${title}: ${description} (${time})`);
+        }
+
+        // === STEP 3: SIMPLE UI UPDATES ===
+        // Like changing TV screen and remote control lights
+
+        function showConnectedState() {
+            console.log('🟢 Showing connected state');
+
+            // Change status badge to green "CONNECTED"
+            statusBadge.className = 'badge online';
+            statusBadge.innerHTML = '<div class="h-1.5 w-1.5 rounded-full bg-green-500"></div>CONNECTED';
+            document.getElementById('status-text').textContent = 'CONNECTED';
+
+            // Change connect button to green "Connected"
+            connectBtn.className = 'connect-btn connected';
+            connectBtn.innerHTML = '<i class="fas fa-check text-2xl"></i><span class="text-sm">Connected</span>';
+
+            // Show video area
+            showVideoArea();
+
+            setInterval(() => {
+                const fps = fpsCounter.fps();
+                fps_value.textContent = fps.toFixed(1);
+            }, 250);
+
+        }
+
+        function showDisconnectedState() {
+            console.log('🔴 Showing disconnected state');
+
+            // Change status badge to red "NOT CONNECTED"
+            statusBadge.className = 'badge offline';
+            statusBadge.innerHTML = '<div class="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>NOT CONNECTED';
+            document.getElementById('status-text').textContent = 'NOT CONNECTED';
+
+            // Change connect button to red "Connect"
+            connectBtn.className = 'connect-btn disconnected';
+            connectBtn.innerHTML = '<i class="fas fa-play text-2xl"></i><span class="text-sm">Connect</span>';
+
+            // Hide video area
+            hideVideoArea();
+        }
+
+        // Fetch stream status from Django backend
+        async function fetchStreamStatus() {
+            try {
+                const response = await fetch('/api/status/');
+                const data = await response.json();
+
+                // Store stream data globally for video loading
+                window.streamData = data;
+
+                // Update UI with stream URLs
+                document.getElementById('hls-url').textContent = data.hls_url || 'Not available';
+                document.getElementById('rtsp-url').textContent = data.rtsp_url || 'Not available';
+                document.getElementById('webrtc-url').textContent = data.webrtc_url || 'Not available';
+
+                console.log('Stream configuration loaded:', data);
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch stream status:', error);
+                throw error;
+            }
+        }
+
+        function toggleSwitch(element) {
+            element.classList.toggle('active');
+        }
+
+        function toggleTheme() {
+            theme = theme === 'dark' ? 'light' : 'dark';
+            // For this demo, we'll just toggle the icon
+            const icon = themeToggle.querySelector('i');
+            if (theme === 'dark') {
+                icon.className = 'fas fa-moon text-lg';
+            } else {
+                icon.className = 'fas fa-sun text-lg';
+            }
+        }
+
+        function toggleMobileMenu() {
+            sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('hidden');
+        }
+
+        // === STEP 4: SHOW/HIDE VIDEO AREA ===
+        // Like turning TV screen on/off
+
+        function showVideoArea() {
+            console.log('📺 Turning on video display');
+
+            // Hide the "No Stream" message and connect button
+            document.getElementById('no-stream-placeholder').style.display = 'none';
+            document.getElementById('connect-btn-overlay').style.display = 'none';
+
+            // Show the video element
+            const videoElement = document.getElementById('video-stream');
+            videoElement.style.display = 'block';
+            videoElement.classList.remove('hidden');
+
+            // Start the video connection
+            startVideoConnection();
+        }
+
+        function hideVideoArea() {
+            console.log('📺 Turning off video display');
+
+            // Stop video connection
+            stopVideoConnection();
+
+            // Show the "No Stream" message and connect button
+            document.getElementById('no-stream-placeholder').style.display = 'block';
+            document.getElementById('connect-btn-overlay').style.display = 'flex';
+
+            // Hide the video element
+            const videoElement = document.getElementById('video-stream');
+            videoElement.style.display = 'none';
+            videoElement.classList.add('hidden');
+            videoElement.srcObject = null;
+        }
+
+        // WebRTC connection management
+        let webrtcPeerConnection = null;
+
+        function startVideoConnection() {
+            console.log('🎬 Starting video connection');
+
+            const videoElement = document.getElementById('video-stream');
+
+            if (window.streamData && window.streamData.webrtc_url) {
+                // Connect to Pi video stream
+                connectToPiVideo(window.streamData.webrtc_url, videoElement);
+            } else {
+                console.log('❌ No video URL available from Pi');
+            }
+        }
+
+        function stopVideoConnection() {
+            console.log('🛑 Stopping video connection');
+
+            if (videoConnection) {
+                videoConnection.close();
+                videoConnection = null;
+            }
+        }
+
+        // === STEP 2: CONNECT TO PI FOR VIDEO STREAM ===
+        // Like tuning into a TV channel to see the camera
+        async function connectToPiVideo(videoUrl, videoElement) {
+            try {
+                console.log('📺 Connecting to Pi video stream...');
+
+                // Create video connection (like a TV receiver)
+                videoConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // Helps with internet routing
+                });
+
+                // When video starts coming from Pi (like TV signal received)
+                videoConnection.ontrack = (event) => {
+                    console.log('🎥 Video coming from Pi!');
+                    videoElement.srcObject = event.streams[0]; // Show video on screen
+                    videoElement.play();
+                };
+
+                // Set up to receive video only (we're not sending anything to Pi)
+                videoConnection.addTransceiver('video', { direction: 'recvonly' });
+
+                // Ask Pi: "Can you send me video?" (like dialing a TV channel)
+                const offer = await videoConnection.createOffer();
+                await videoConnection.setLocalDescription(offer);
+
+                // Send request to Pi
+                const response = await fetch(videoUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: offer.sdp
+                });
+
+                // Pi responds: "Yes, here's my video signal"
+                const answer = await response.text();
+                await videoConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answer
+                });
+
+                console.log('✅ Video connection established!');
+
+            } catch (error) {
+                console.log('❌ Video connection failed:', error);
+            }
+        }
+
+        // HLS fallback connection
+        function connectHLS(hlsUrl, videoElement) {
+            console.log('Loading HLS stream:', hlsUrl);
+
+            if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native HLS support (Safari)
+                videoElement.src = hlsUrl;
+            } else {
+                // Try HLS.js for other browsers
+                if (window.Hls && Hls.isSupported()) {
+                    const hls = new Hls();
+                    hls.loadSource(hlsUrl);
+                    hls.attachMedia(videoElement);
+                    console.log('HLS.js stream loaded');
+                } else {
+                    console.log('HLS not supported');
+                    videoElement.poster = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQwIiBoZWlnaHQ9IjM2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyNCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkhMUyBOb3QgU3VwcG9ydGVkPC90ZXh0Pjwvc3ZnPg==';
+                }
+            }
+        }
+
+        // Disconnect WebRTC
+        function disconnectWebRTC() {
+            if (webrtcPeerConnection) {
+                webrtcPeerConnection.close();
+                webrtcPeerConnection = null;
+                console.log('WebRTC connection closed');
+            }
+        }
+
+        // === MAIN CONNECT FUNCTION ===
+        // Like pressing the "ON" button on your TV remote
+
+        function handleConnect() {
+            console.log('🔘 User clicked Connect button!');
+
+            // Remember that user manually clicked connect
+            window.userClickedConnect = true;
+
+            // Show connecting state
+            connectBtn.className = 'connect-btn connecting';
+            connectBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-2xl"></i><span class="text-sm">Connecting...</span>';
+
+            if (cameraWebSocket && cameraWebSocket.readyState === WebSocket.OPEN) {
+                // Already connected to Pi - just update the display
+                console.log('✅ Already connected to Pi - showing video');
+                showConnectedState();
+            } else {
+                // Not connected - start connecting to Pi
+                console.log('🔌 Connecting to Pi...');
+                connectToPiControls();
+            }
+        }
+
+        // === SETUP BUTTON CLICKS ===
+        // Like programming your remote control buttons
+
+        function setupButtons() {
+            console.log('🎮 Setting up buttons...');
+
+            // Connect button - when clicked, connect to Pi
+            connectBtn.addEventListener('click', handleConnect);
+
+            // Brightness slider - when moved, send new brightness to Pi
+            brightnessSlider.addEventListener('input', (e) => {
+                const brightness = parseInt(e.target.value);
+                brightnessValue.textContent = brightness;
+                sendBrightnessToPI(brightness);
+            });
+
+            // Simple menu and theme toggles
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            document.getElementById('mobile-menu-toggle').addEventListener('click', toggleMobileMenu);
+            document.getElementById('sidebar-overlay').addEventListener('click', toggleMobileMenu);
+
+            console.log('✅ All buttons ready!');
+        }
+
+        // === START THE DASHBOARD ===
+        // Like turning on your entire entertainment system
+
+        async function startDashboard() {
+            console.log('🚀 Starting Pi Camera Dashboard...');
+
+            // 1. Setup all buttons and controls
+            setupButtons();
+
+            // 2. Setup visual effects
+            initParticles();
+
+            // 4. Set initial disconnected state
+            showDisconnectedState();
+
+            // 5. Get Pi connection info from Django
+            try {
+                await fetchStreamStatus();
+                console.log('✅ Got Pi connection info from Django');
+            } catch (error) {
+                console.log('❌ Could not get Pi info:', error);
+            }
+
+         
+            // 6. Auto-connect to Pi controls (but don't show video yet)
+            connectToPiControls();
+
+            // 7. Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading-overlay').style.display = 'none';
+                console.log('🎉 Dashboard ready! Click Connect to see Pi camera.');
+            }, 2000);
+        }
+
+        // Start the application
+        startDashboard();
+    </script>
+</body>
+</html>

@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surveillance Analytics</title>
+
+    <!-- External Libraries -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --radius: 0.625rem;
+            --primary-color: #06b6d4;
+            --secondary-color: #3b82f6;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            height: 100vh;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass {
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            border: 1px solid transparent;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: rgb(148, 163, 184);
+            border: 1px solid transparent;
+        }
+
+        .btn-ghost:hover {
+            background: rgba(148, 163, 184, 0.1);
+            color: rgb(226, 232, 240);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+        }
+
+        .progress {
+            width: 100%;
+            height: 6px;
+            background: rgb(51, 65, 85);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        /* Mobile sidebar */
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 40;
+                transform: translateX(-100%);
+                width: 280px;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 30;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s;
+            }
+
+            .sidebar-overlay.active {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .header-title {
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .header-title {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Hamburger menu */
+        .hamburger {
+            display: none;
+            width: 24px;
+            height: 20px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .hamburger span {
+            display: block;
+            width: 100%;
+            height: 2px;
+            background: #06b6d4;
+            position: absolute;
+            transition: all 0.3s;
+        }
+
+        .hamburger span:nth-child(1) {
+            top: 0;
+        }
+
+        .hamburger span:nth-child(2) {
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .hamburger span:nth-child(3) {
+            bottom: 0;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            top: 50%;
+            transform: translateY(-50%) rotate(45deg);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            bottom: 50%;
+            transform: translateY(50%) rotate(-45deg);
+        }
+
+        @media (max-width: 768px) {
+            .hamburger {
+                display: block;
+            }
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            border-radius: 4px;
+        }
+
+        .text-gradient {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Main content scroll container */
+        .main-content-scroll {
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 4px;
+        }
+
+        .main-content-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .main-content-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 4px;
+        }
+
+        .main-content-scroll::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            border-radius: 4px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .main-content-scroll::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #0891b2, #2563eb);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-black to-slate-900 text-slate-100">
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="container mx-auto p-4">
+        <!-- Header -->
+        <header class="flex items-center justify-between py-4 border-b border-slate-700/50 mb-6">
+            <div class="flex items-center space-x-3">
+                <!-- Hamburger Menu (Mobile) -->
+                <div class="hamburger" id="hamburger-menu" onclick="toggleSidebar()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+
+                <i class="fas fa-chart-line text-cyan-500 text-2xl"></i>
+                <span class="text-xl font-bold text-gradient header-title">SURVEILLANCE ANALYTICS</span>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <a href="{% url 'live_feed' %}" class="btn btn-ghost">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    <span class="hidden sm:inline">Back to Dashboard</span>
+                    <span class="sm:hidden">Back</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <div class="grid grid-cols-12 gap-6">
+            <!-- Sidebar -->
+            <div id="sidebar" class="sidebar col-span-12 md:col-span-3 lg:col-span-2">
+                <div class="glass rounded-lg">
+                    <div class="p-4">
+                        <nav class="space-y-2">
+                            <a href="{% url 'live_feed' %}" class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-th-large mr-2"></i>
+                                Dashboard
+                            </a>
+                            <a href="{% url 'live_feed' %}" class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-video mr-2"></i>
+                                Cameras
+                            </a>
+                            <a href="{% url 'live_feed' %}" class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-folder mr-2"></i>
+                                Recordings
+                            </a>
+                            <a href="#" class="btn btn-ghost w-full justify-start bg-slate-800/70 text-cyan-400">
+                                <i class="fas fa-chart-line mr-2"></i>
+                                Analytics
+                            </a>
+                            <a href="{% url 'settings' %}" class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-cog mr-2"></i>
+                                Settings
+                            </a>
+                        </nav>
+
+                        <!-- System Status -->
+                        <div class="mt-8 pt-6 border-t border-slate-700/50">
+                            <div class="text-xs text-slate-500 mb-2 font-mono">SYSTEM STATUS</div>
+                            <div class="space-y-3">
+                                <!-- Connection Health -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <div class="text-xs text-slate-400">Connection</div>
+                                        <div class="text-xs text-slate-400"><span id="connection-percent">100</span>%</div>
+                                    </div>
+                                    <div class="progress">
+                                        <div id="connection-bar" class="progress-bar" style="width: 100%; background: linear-gradient(to right, #10b981, #059669);"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Signal Quality -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <div class="text-xs text-slate-400">Signal Quality</div>
+                                        <div class="text-xs text-slate-400"><span id="quality-percent">95</span>%</div>
+                                    </div>
+                                    <div class="progress">
+                                        <div id="quality-bar" class="progress-bar" style="width: 95%; background: linear-gradient(to right, #06b6d4, #0891b2);"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Analytics Content -->
+            <div class="col-span-12 md:col-span-9 lg:col-span-10">
+                <div class="main-content-scroll">
+                <!-- Time Period Filter -->
+                <div class="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-100 mb-1">System Analytics</h2>
+                        <p class="text-slate-400 text-sm">Monitor camera system performance and health</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button class="btn glass text-slate-300 hover:bg-slate-800/50">
+                            <i class="fas fa-calendar mr-2"></i>
+                            <span class="hidden sm:inline">Last 7 Days</span>
+                            <span class="sm:hidden">7d</span>
+                        </button>
+                        <button class="btn glass text-slate-300 hover:bg-slate-800/50">
+                            <i class="fas fa-download"></i>
+                            <span class="hidden sm:inline ml-2">Export</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- System Metrics Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <!-- Uptime -->
+                    <div class="glass rounded-lg p-6 stat-card relative overflow-hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="text-sm text-slate-400">System Uptime</div>
+                            <div class="w-12 h-12 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                                <i class="fas fa-server text-cyan-400 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-slate-100 mb-2">99.8%</div>
+                        <div class="flex items-center text-sm">
+                            <span class="text-green-400">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Healthy
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Storage Used -->
+                    <div class="glass rounded-lg p-6 stat-card relative overflow-hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="text-sm text-slate-400">Storage Used</div>
+                            <div class="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                                <i class="fas fa-hdd text-purple-400 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-slate-100 mb-2">842 GB</div>
+                        <div class="flex items-center text-sm">
+                            <span class="text-slate-400">
+                                of 2 TB total
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Recording Time -->
+                    <div class="glass rounded-lg p-6 stat-card relative overflow-hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="text-sm text-slate-400">Recording Time</div>
+                            <div class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                                <i class="fas fa-clock text-blue-400 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-slate-100 mb-2">1,245h</div>
+                        <div class="flex items-center text-sm">
+                            <span class="text-green-400">
+                                <i class="fas fa-arrow-up mr-1"></i>
+                                +15%
+                            </span>
+                            <span class="text-slate-500 ml-2">vs last week</span>
+                        </div>
+                    </div>
+
+                    <!-- Active Cameras -->
+                    <div class="glass rounded-lg p-6 stat-card relative overflow-hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="text-sm text-slate-400">Active Cameras</div>
+                            <div class="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
+                                <i class="fas fa-video text-green-400 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-slate-100 mb-2">4/4</div>
+                        <div class="flex items-center text-sm">
+                            <span class="text-green-400">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                All online
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- System Performance Chart -->
+                    <div class="glass rounded-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-slate-100">System Performance</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Network Usage Chart -->
+                    <div class="glass rounded-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-slate-100">Network Usage</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="networkChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Metrics -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Camera Status -->
+                    <div class="glass rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-slate-100 mb-4">Camera Status</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-slate-400">Camera 1</span>
+                                    <span class="text-sm font-semibold text-green-400">Online</span>
+                                </div>
+                                <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-green-500 to-emerald-500" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-slate-400">Camera 2</span>
+                                    <span class="text-sm font-semibold text-green-400">Online</span>
+                                </div>
+                                <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-green-500 to-emerald-500" style="width: 98%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-slate-400">Camera 3</span>
+                                    <span class="text-sm font-semibold text-green-400">Online</span>
+                                </div>
+                                <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-green-500 to-emerald-500" style="width: 95%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-slate-400">Camera 4</span>
+                                    <span class="text-sm font-semibold text-green-400">Online</span>
+                                </div>
+                                <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-green-500 to-emerald-500" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Resources -->
+                    <div class="glass rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-slate-100 mb-4">System Resources</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-slate-400">CPU Usage</span>
+                                    <span class="text-sm font-semibold text-slate-200">45%</span>
+                                </div>
+                                <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-cyan-500 to-blue-500" style="width: 45%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-slate-400">Memory</span>
+                                    <span class="text-sm font-semibold text-slate-200">62%</span>
+                                </div>
+                                <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-purple-500 to-pink-500" style="width: 62%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-slate-400">Disk I/O</span>
+                                    <span class="text-sm font-semibold text-slate-200">28%</span>
+                                </div>
+                                <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500" style="width: 28%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Events -->
+                    <div class="glass rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-slate-100 mb-4">Recent Events</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-play text-green-400 text-xs"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-slate-200">Recording started</div>
+                                    <div class="text-xs text-slate-500">Camera 1 • 2 hours ago</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-check text-cyan-400 text-xs"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-slate-200">System health check passed</div>
+                                    <div class="text-xs text-slate-500">5 hours ago</div>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-save text-amber-400 text-xs"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-slate-200">Backup completed</div>
+                                    <div class="text-xs text-slate-500">8 hours ago</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle mobile sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const hamburger = document.getElementById('hamburger-menu');
+
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+            hamburger.classList.toggle('active');
+        }
+
+        // Chart.js default configuration
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = 'rgba(148, 163, 184, 0.1)';
+
+        // System Performance Chart
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        new Chart(performanceCtx, {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [
+                    {
+                        label: 'CPU Usage (%)',
+                        data: [42, 48, 45, 51, 47, 45, 49],
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Memory Usage (%)',
+                        data: [58, 62, 60, 65, 63, 61, 64],
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Network Usage Chart
+        const networkCtx = document.getElementById('networkChart').getContext('2d');
+        new Chart(networkCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [
+                    {
+                        label: 'Upload (Mbps)',
+                        data: [2.4, 2.8, 2.5, 3.1, 2.9, 2.7, 3.0],
+                        backgroundColor: 'rgba(6, 182, 212, 0.5)',
+                        borderColor: '#06b6d4',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Download (Mbps)',
+                        data: [1.2, 1.5, 1.3, 1.8, 1.6, 1.4, 1.7],
+                        backgroundColor: 'rgba(139, 92, 246, 0.5)',
+                        borderColor: '#8b5cf6',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

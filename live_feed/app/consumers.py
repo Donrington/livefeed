@@ -1,89 +1,60 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
-from . import messages_pb2
+from messages import messages_pb2
+import logging
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(threadName)s] %(levelname)s: %(message)s"
+)
+log = logging.getLogger(__name__) 
 
 class CameraSettingsConsumer(AsyncWebsocketConsumer):
+    group_name = "camera_group"
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.current_settings = {
-            'brightness': 1080,
-            'cameraName': "nextgen_camera"
-        }
 
     async def connect(self):
         # Accept the WebSocket connection
         await self.accept()
-        print("WebSocket connected - Camera control ready")
-
-        # Send initial camera settings
-        await self.send_camera_settings()
-
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        log.info("WebSocket connected - Camera control ready")
+                
     async def disconnect(self, close_code):
-        print(f"WebSocket disconnected with code: {close_code}")
+        log.info(f"WebSocket disconnected with code: {close_code}")
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+
+
+    async def connection_status(self, event):
+        if event.get("origin") == self.channel_name: #exclude the sender of the message 
+            return
+
+        isConnected = event['isConnected']
+        await self.send(text_data=json.dumps({
+            'type': 'connection_status',
+            'isConnected': isConnected,
+        }))
 
     async def receive(self, text_data=None, bytes_data=None):
-        # Handle incoming messages from web dashboard
-        if text_data:
-            try:
-                data = json.loads(text_data)
-                if data.get('type') == 'update_camera_settings':
-                    # Update camera settings from dashboard
-                    if 'brightness' in data:
-                        self.current_settings['brightness'] = int(data['brightness'])
-                    if 'cameraName' in data:
-                        self.current_settings['cameraName'] = data['cameraName']
-
-                    print(f"Updated camera settings: {self.current_settings}")
-
-                    # Send updated settings to Pi (protobuf) and dashboard (JSON)
-                    await self.send_camera_settings()
-
-            except json.JSONDecodeError:
-                print(f"Invalid JSON received: {text_data}")
-
         # Handle protobuf messages from Pi
         if bytes_data:
             try:
-                # Parse protobuf message from Pi
-                cam_message = messages_pb2.CameraSettings()
-                cam_message.ParseFromString(bytes_data)
-                print(f"Received protobuf from Pi: brightness={cam_message.brightness}, camera={cam_message.cameraName}")
-
-                # Update current settings
-                self.current_settings['brightness'] = cam_message.brightness
-                self.current_settings['cameraName'] = cam_message.cameraName
-
-                # Send updated settings to dashboard
-                await self.send_dashboard_update()
-
+                cam_data = messages_pb2.CameraStatus()
+                cam_data.ParseFromString(bytes_data)
+                await self.send_connection_status(cam_data.isConnected)
+               
             except Exception as e:
-                print(f"Error parsing protobuf: {e}")
+                log.error(f"Error parsing protobuf: {e}")
 
-    async def send_camera_settings(self):
-        """Send camera settings to both Pi (protobuf) and dashboard (JSON)"""
-
-        # Create protobuf message for Pi
-        cam_message = messages_pb2.CameraSettings(
-            brightness=self.current_settings['brightness'],
-            cameraName=self.current_settings['cameraName']
+        
+    async def send_connection_status(self, connected: bool):
+        """Send connection status to dashboard"""
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                'type': 'connection_status',
+                'isConnected': connected,
+                "origin": self.channel_name,
+            }
         )
-
-        # Send protobuf to Pi
-        await self.send(bytes_data=cam_message.SerializeToString())
-
-        # Send JSON to dashboard
-        await self.send_dashboard_update()
-
-    async def send_dashboard_update(self):
-        """Send JSON update to dashboard"""
-        await self.send(text_data=json.dumps({
-            'type': 'camera_settings_update',
-            'brightness': self.current_settings['brightness'],
-            'cameraName': self.current_settings['cameraName'],
-            'timestamp': self.get_timestamp()
-        }))
-
-    def get_timestamp(self):
-        from datetime import datetime
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+ 

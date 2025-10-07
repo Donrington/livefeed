@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stream - Watch</title>
+
+    <!-- External Libraries -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        :root {
+            --radius: 0.625rem;
+            --primary-color: #06b6d4;
+            --secondary-color: #3b82f6;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --purple-color: #8b5cf6;
+            --pink-color: #ec4899;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            height: 100vh;
+            background: #0f1419;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Theater mode */
+        body.theater-mode .container {
+            max-width: 100% !important;
+        }
+
+        body.theater-mode .video-container {
+            max-height: 85vh;
+        }
+
+        /* Fullscreen mode */
+        .video-container:fullscreen {
+            background: black;
+        }
+
+        .video-container:-webkit-full-screen {
+            background: black;
+        }
+
+        .video-container:-moz-full-screen {
+            background: black;
+        }
+
+        /* Video player controls */
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+            padding: 60px 20px 20px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 10;
+        }
+
+        .video-container:hover .video-controls {
+            transform: translateY(0);
+        }
+
+        .video-container.show-controls .video-controls {
+            transform: translateY(0);
+        }
+
+        /* Progress bar */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            cursor: pointer;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--error-color);
+            border-radius: 3px;
+            position: relative;
+            transition: width 0.1s;
+        }
+
+        .progress-handle {
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .progress-container:hover .progress-handle {
+            opacity: 1;
+        }
+
+        /* Volume slider */
+        .volume-slider {
+            width: 0;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+            transition: width 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .volume-control:hover .volume-slider {
+            width: 80px;
+        }
+
+        .volume-fill {
+            height: 100%;
+            background: white;
+            border-radius: 3px;
+            transition: width 0.1s;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border: 1px solid;
+        }
+
+        .badge.live {
+            background: rgba(239, 68, 68, 0.2);
+            color: rgb(248, 113, 113);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .badge.offline {
+            background: rgba(71, 85, 105, 0.3);
+            color: rgb(148, 163, 184);
+            border-color: rgba(71, 85, 105, 0.5);
+        }
+
+        /* Chat */
+        .chat-container {
+            height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .chat-message {
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .chat-message:hover {
+            background: rgba(100, 116, 139, 0.1);
+        }
+
+        .chat-message .username {
+            font-weight: 600;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .chat-message .message {
+            color: rgb(226, 232, 240);
+            word-wrap: break-word;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            border-radius: 4px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #0891b2, #2563eb);
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        /* Button styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            border: 1px solid transparent;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: transparent;
+        }
+
+        .btn:hover {
+            background: rgba(148, 163, 184, 0.1);
+        }
+
+        .btn.active {
+            color: var(--primary-color);
+        }
+
+        /* Loading animation */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+        }
+
+        .pulse-dot {
+            animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Quality selector */
+        .quality-menu {
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: var(--radius);
+            padding: 8px 0;
+            margin-bottom: 8px;
+            min-width: 120px;
+            display: none;
+            backdrop-filter: blur(10px);
+        }
+
+        .quality-menu.show {
+            display: block;
+        }
+
+        .quality-option {
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: rgb(226, 232, 240);
+            font-size: 0.875rem;
+        }
+
+        .quality-option:hover {
+            background: rgba(148, 163, 184, 0.1);
+        }
+
+        .quality-option.active {
+            color: var(--primary-color);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .chat-sidebar {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .video-controls {
+                padding: 40px 12px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-30">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo and Title -->
+                <div class="flex items-center space-x-4">
+                    <a href="/dashboard" class="flex items-center space-x-2 hover:opacity-80 transition">
+                        <i class="fas fa-video text-cyan-500 text-xl"></i>
+                        <span class="text-lg font-bold text-white">LIVE STREAM</span>
+                    </a>
+                    <div class="h-6 w-px bg-slate-700"></div>
+                    <div>
+                        <h1 class="text-white font-semibold text-sm">Surveillance Feed</h1>
+                        <div class="flex items-center space-x-2 text-xs text-slate-400">
+                            <span id="viewer-count">0</span>
+                            <span>viewers</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex items-center space-x-3">
+                    <div id="live-badge" class="badge offline">
+                        <div class="h-1.5 w-1.5 rounded-full bg-slate-500"></div>
+                        OFFLINE
+                    </div>
+                    <button class="btn p-2 text-slate-400 hover:text-white" title="Share">
+                        <i class="fas fa-share-alt"></i>
+                    </button>
+                    <button class="btn p-2 text-slate-400 hover:text-white" title="Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto p-4">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Video Player -->
+            <div class="lg:col-span-3">
+                <!-- Video Container -->
+                <div id="video-container" class="video-container relative bg-black rounded-lg overflow-hidden shadow-2xl">
+                    <video
+                        id="video-player"
+                        class="w-full h-full object-contain"
+                        poster="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyMCIgaGVpZ2h0PSIxMDgwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMwMDAiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjQ4IiBmaWxsPSIjNjY2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+V2FpdGluZyBmb3Igc3RyZWFtLi4uPC90ZXh0Pjwvc3ZnPg=="
+                    ></video>
+
+                    <!-- Loading Overlay -->
+                    <div id="loading-overlay" class="absolute inset-0 flex items-center justify-center bg-black/80">
+                        <div class="text-center">
+                            <i class="fas fa-circle-notch animate-spin text-cyan-500 text-4xl mb-4"></i>
+                            <p class="text-white text-lg">Connecting to stream...</p>
+                            <p class="text-slate-400 text-sm mt-2">Please wait</p>
+                        </div>
+                    </div>
+
+                    <!-- Video Controls -->
+                    <div class="video-controls">
+                        <!-- Progress Bar -->
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: 0%">
+                                <div class="progress-handle"></div>
+                            </div>
+                        </div>
+
+                        <!-- Control Buttons -->
+                        <div class="flex items-center justify-between text-white">
+                            <!-- Left Controls -->
+                            <div class="flex items-center space-x-3">
+                                <button id="play-pause-btn" class="btn p-0 w-10 h-10 text-lg" title="Play/Pause">
+                                    <i class="fas fa-play"></i>
+                                </button>
+
+                                <div class="volume-control flex items-center space-x-2">
+                                    <button id="volume-btn" class="btn p-0 w-8 h-8" title="Mute/Unmute">
+                                        <i class="fas fa-volume-up"></i>
+                                    </button>
+                                    <div class="volume-slider">
+                                        <div class="volume-fill" style="width: 100%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="text-sm font-mono">
+                                    <span id="current-time">00:00</span>
+                                    <span class="text-slate-500"> / </span>
+                                    <span id="duration">LIVE</span>
+                                </div>
+                            </div>
+
+                            <!-- Right Controls -->
+                            <div class="flex items-center space-x-2">
+                                <button id="quality-btn" class="btn px-3 py-1 text-sm relative" title="Quality">
+                                    <span id="quality-text">Auto</span>
+                                    <i class="fas fa-chevron-up ml-1 text-xs"></i>
+
+                                    <!-- Quality Menu -->
+                                    <div id="quality-menu" class="quality-menu">
+                                        <div class="quality-option active" data-quality="auto">Auto</div>
+                                        <div class="quality-option" data-quality="1080p">1080p</div>
+                                        <div class="quality-option" data-quality="720p">720p</div>
+                                        <div class="quality-option" data-quality="480p">480p</div>
+                                        <div class="quality-option" data-quality="360p">360p</div>
+                                    </div>
+                                </button>
+
+                                <button id="theater-btn" class="btn p-0 w-8 h-8" title="Theater Mode">
+                                    <i class="fas fa-expand-wide"></i>
+                                </button>
+
+                                <button id="fullscreen-btn" class="btn p-0 w-8 h-8" title="Fullscreen">
+                                    <i class="fas fa-expand"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stream Info -->
+                <div class="mt-6 bg-slate-900/50 rounded-lg p-6 border border-slate-700/50">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-white mb-2">Live Surveillance Stream</h2>
+                            <p class="text-slate-400 text-sm mb-4">
+                                Real-time video feed from Raspberry Pi camera with WebRTC streaming
+                            </p>
+                            <div class="flex items-center space-x-4 text-sm">
+                                <div class="flex items-center space-x-2 text-slate-400">
+                                    <i class="fas fa-signal text-cyan-500"></i>
+                                    <span>Quality: <span id="current-quality" class="text-white">1080p</span></span>
+                                </div>
+                                <div class="flex items-center space-x-2 text-slate-400">
+                                    <i class="fas fa-clock text-purple-500"></i>
+                                    <span>Latency: <span id="latency" class="text-white">~50ms</span></span>
+                                </div>
+                                <div class="flex items-center space-x-2 text-slate-400">
+                                    <i class="fas fa-tachometer-alt text-green-500"></i>
+                                    <span>Bitrate: <span id="bitrate" class="text-white">2.5 Mbps</span></span>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn border border-cyan-600 text-cyan-400 px-4 py-2 hover:bg-cyan-600 hover:text-white">
+                            <i class="fas fa-heart mr-2"></i>
+                            Follow
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Sidebar -->
+            <div class="chat-sidebar lg:col-span-1">
+                <div class="bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-hidden h-full flex flex-col">
+                    <!-- Chat Header -->
+                    <div class="p-4 border-b border-slate-700/50">
+                        <h3 class="text-white font-semibold flex items-center">
+                            <i class="fas fa-comments text-cyan-500 mr-2"></i>
+                            Live Chat
+                        </h3>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <div id="chat-messages" class="chat-container flex-1 p-4 space-y-3">
+                        <div class="text-center text-slate-500 py-8">
+                            <i class="fas fa-comments text-4xl mb-2 opacity-50"></i>
+                            <p class="text-sm">Chat will appear when stream starts</p>
+                        </div>
+                    </div>
+
+                    <!-- Chat Input -->
+                    <div class="p-4 border-t border-slate-700/50">
+                        <div class="flex items-center space-x-2">
+                            <input
+                                id="chat-input"
+                                type="text"
+                                placeholder="Send a message..."
+                                class="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-cyan-500 text-white placeholder:text-slate-500"
+                                disabled
+                            />
+                            <button
+                                id="send-chat-btn"
+                                class="btn bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg"
+                                disabled
+                            >
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === STATE MANAGEMENT ===
+        let isPlaying = false;
+        let isMuted = false;
+        let isTheaterMode = false;
+        let currentVolume = 100;
+        let streamConnection = null;
+        let videoElement = document.getElementById('video-player');
+        let loadingOverlay = document.getElementById('loading-overlay');
+
+        // === DOM ELEMENTS ===
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const volumeBtn = document.getElementById('volume-btn');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const theaterBtn = document.getElementById('theater-btn');
+        const qualityBtn = document.getElementById('quality-btn');
+        const qualityMenu = document.getElementById('quality-menu');
+        const videoContainer = document.getElementById('video-container');
+        const chatInput = document.getElementById('chat-input');
+        const sendChatBtn = document.getElementById('send-chat-btn');
+
+        // === VIDEO CONTROLS ===
+
+        // Play/Pause
+        playPauseBtn.addEventListener('click', togglePlayPause);
+        videoElement.addEventListener('click', togglePlayPause);
+
+        function togglePlayPause() {
+            if (isPlaying) {
+                videoElement.pause();
+                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+            } else {
+                videoElement.play();
+                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            }
+            isPlaying = !isPlaying;
+        }
+
+        // Volume
+        volumeBtn.addEventListener('click', toggleMute);
+
+        function toggleMute() {
+            if (isMuted) {
+                videoElement.muted = false;
+                volumeBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                document.querySelector('.volume-fill').style.width = currentVolume + '%';
+            } else {
+                videoElement.muted = true;
+                volumeBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                document.querySelector('.volume-fill').style.width = '0%';
+            }
+            isMuted = !isMuted;
+        }
+
+        // Volume slider
+        const volumeSlider = document.querySelector('.volume-slider');
+        volumeSlider.addEventListener('click', (e) => {
+            const rect = volumeSlider.getBoundingClientRect();
+            const percent = ((e.clientX - rect.left) / rect.width) * 100;
+            currentVolume = Math.max(0, Math.min(100, percent));
+            videoElement.volume = currentVolume / 100;
+            document.querySelector('.volume-fill').style.width = currentVolume + '%';
+
+            if (currentVolume === 0) {
+                isMuted = true;
+                volumeBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+            } else {
+                isMuted = false;
+                volumeBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+            }
+        });
+
+        // Quality selector
+        qualityBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            qualityMenu.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => {
+            qualityMenu.classList.remove('show');
+        });
+
+        document.querySelectorAll('.quality-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                const quality = e.target.dataset.quality;
+                document.querySelectorAll('.quality-option').forEach(opt => opt.classList.remove('active'));
+                e.target.classList.add('active');
+                document.getElementById('quality-text').textContent = quality;
+                console.log('Quality changed to:', quality);
+            });
+        });
+
+        // Theater mode
+        theaterBtn.addEventListener('click', () => {
+            isTheaterMode = !isTheaterMode;
+            document.body.classList.toggle('theater-mode');
+
+            if (isTheaterMode) {
+                theaterBtn.innerHTML = '<i class="fas fa-compress-wide"></i>';
+            } else {
+                theaterBtn.innerHTML = '<i class="fas fa-expand-wide"></i>';
+            }
+        });
+
+        // Fullscreen
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                videoContainer.requestFullscreen().catch(err => {
+                    console.log('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Fullscreen change event
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+            } else {
+                fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+            }
+        });
+
+        // Show/hide controls
+        let controlsTimeout;
+        videoContainer.addEventListener('mousemove', () => {
+            videoContainer.classList.add('show-controls');
+            clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(() => {
+                if (isPlaying) {
+                    videoContainer.classList.remove('show-controls');
+                }
+            }, 3000);
+        });
+
+        videoContainer.addEventListener('mouseleave', () => {
+            if (isPlaying) {
+                videoContainer.classList.remove('show-controls');
+            }
+        });
+
+        // === STREAM CONNECTION ===
+
+        async function connectToStream() {
+            console.log('🎬 Connecting to live stream...');
+
+            try {
+                // Fetch stream configuration
+                const response = await fetch('/api/status/');
+                const data = await response.json();
+
+                console.log('Stream config:', data);
+
+                // Connect using WebRTC
+                if (data.webrtc_url) {
+                    await connectWebRTC(data.webrtc_url);
+                } else if (data.hls_url) {
+                    connectHLS(data.hls_url);
+                } else {
+                    throw new Error('No stream URL available');
+                }
+
+                // Update UI
+                updateLiveStatus(true);
+
+            } catch (error) {
+                console.error('Failed to connect to stream:', error);
+                loadingOverlay.innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-exclamation-circle text-red-500 text-4xl mb-4"></i>
+                        <p class="text-white text-lg">Connection Failed</p>
+                        <p class="text-slate-400 text-sm mt-2">${error.message}</p>
+                        <button onclick="connectToStream()" class="mt-4 btn bg-cyan-600 text-white px-6 py-2 rounded-lg">
+                            Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        async function connectWebRTC(webrtcUrl) {
+            console.log('📡 Connecting via WebRTC...');
+
+            streamConnection = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+
+            streamConnection.ontrack = (event) => {
+                console.log('✅ Stream connected!');
+                videoElement.srcObject = event.streams[0];
+                videoElement.play();
+                loadingOverlay.style.display = 'none';
+                isPlaying = true;
+                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            };
+
+            streamConnection.addTransceiver('video', { direction: 'recvonly' });
+
+            const offer = await streamConnection.createOffer();
+            await streamConnection.setLocalDescription(offer);
+
+            const response = await fetch(webrtcUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/sdp' },
+                body: offer.sdp
+            });
+
+            const answer = await response.text();
+            await streamConnection.setRemoteDescription({
+                type: 'answer',
+                sdp: answer
+            });
+        }
+
+        function connectHLS(hlsUrl) {
+            console.log('📡 Connecting via HLS...');
+
+            if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                videoElement.src = hlsUrl;
+                videoElement.play();
+                loadingOverlay.style.display = 'none';
+            } else {
+                console.error('HLS not supported');
+            }
+        }
+
+        function updateLiveStatus(isLive) {
+            const badge = document.getElementById('live-badge');
+            if (isLive) {
+                badge.className = 'badge live';
+                badge.innerHTML = '<div class="h-1.5 w-1.5 rounded-full bg-red-500 pulse-dot"></div>LIVE';
+                chatInput.disabled = false;
+                sendChatBtn.disabled = false;
+            } else {
+                badge.className = 'badge offline';
+                badge.innerHTML = '<div class="h-1.5 w-1.5 rounded-full bg-slate-500"></div>OFFLINE';
+                chatInput.disabled = true;
+                sendChatBtn.disabled = true;
+            }
+        }
+
+        // === CHAT FUNCTIONALITY ===
+
+        function addChatMessage(username, message, color = '#06b6d4') {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'chat-message';
+            messageEl.innerHTML = `
+                <span class="username" style="color: ${color}">${username}</span>
+                <span class="message">: ${message}</span>
+            `;
+
+            // Remove placeholder if exists
+            const placeholder = chatMessages.querySelector('.text-center');
+            if (placeholder) {
+                placeholder.remove();
+            }
+
+            chatMessages.appendChild(messageEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && chatInput.value.trim()) {
+                sendChatMessage();
+            }
+        });
+
+        sendChatBtn.addEventListener('click', sendChatMessage);
+
+        function sendChatMessage() {
+            const message = chatInput.value.trim();
+            if (message) {
+                addChatMessage('You', message);
+                chatInput.value = '';
+            }
+        }
+
+        // === INITIALIZE ===
+
+        function initializeStream() {
+            console.log('🚀 Initializing live stream page...');
+
+            // Auto-connect to stream
+            setTimeout(() => {
+                connectToStream();
+            }, 1000);
+
+            // Simulate viewer count updates
+            setInterval(() => {
+                const viewers = Math.floor(Math.random() * 50) + 10;
+                document.getElementById('viewer-count').textContent = viewers;
+            }, 5000);
+        }
+
+        // Start the stream
+        initializeStream();
+    </script>
+</body>
+</html>

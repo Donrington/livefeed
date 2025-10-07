@@ -3,5 +3,6 @@
 *.pyc
 *.pyo
 *.pyd 
+app/__pycache__
       
 

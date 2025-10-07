@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Surveillance Dashboard</title>
+
+    <!-- External Libraries -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        :root {
+            --radius: 0.625rem;
+            --primary-color: #06b6d4;
+            --secondary-color: #3b82f6;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            height: 100vh;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Glass effect */
+        .glass {
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        /* Button styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            border: 1px solid transparent;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: rgb(148, 163, 184);
+            border: 1px solid transparent;
+        }
+
+        .btn-ghost:hover {
+            background: rgba(148, 163, 184, 0.1);
+            color: rgb(226, 232, 240);
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0891b2;
+        }
+
+        .btn-primary.active {
+            background: var(--success-color);
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border: 1px solid;
+        }
+
+        .badge.live {
+            background: rgba(16, 185, 129, 0.2);
+            color: rgb(52, 211, 153);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .badge.offline {
+            background: rgba(239, 68, 68, 0.2);
+            color: rgb(248, 113, 113);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        /* Progress bars */
+        .progress {
+            width: 100%;
+            height: 6px;
+            background: rgb(51, 65, 85);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        /* Slider */
+        .slider {
+            width: 100%;
+            height: 6px;
+            background: rgb(51, 65, 85);
+            border-radius: 3px;
+            outline: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            border-radius: 4px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        /* Multi-camera grid */
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .camera-grid.single {
+            grid-template-columns: 1fr;
+        }
+
+        .camera-feed {
+            position: relative;
+            aspect-ratio: 16/9;
+            background: rgb(15, 23, 42);
+            border-radius: var(--radius);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            overflow: hidden;
+        }
+
+        .camera-feed video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .camera-label {
+            position: absolute;
+            top: 0.5rem;
+            left: 0.5rem;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            z-index: 2;
+        }
+
+        /* Connect button overlay */
+        .connect-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 1;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .connect-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+        }
+
+        .connect-btn-overlay {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow:
+                0 10px 40px rgba(6, 182, 212, 0.4),
+                0 0 0 0 rgba(6, 182, 212, 0.5);
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse-ring {
+            0%, 100% {
+                box-shadow:
+                    0 10px 40px rgba(6, 182, 212, 0.4),
+                    0 0 0 0 rgba(6, 182, 212, 0.5);
+            }
+            50% {
+                box-shadow:
+                    0 10px 40px rgba(6, 182, 212, 0.6),
+                    0 0 0 20px rgba(6, 182, 212, 0);
+            }
+        }
+
+        @keyframes rotate-gradient {
+            0% {
+                filter: hue-rotate(0deg);
+            }
+            100% {
+                filter: hue-rotate(360deg);
+            }
+        }
+
+        @keyframes bounce-in {
+            0% {
+                transform: scale(0.8) rotate(0deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1) rotate(180deg);
+            }
+            100% {
+                transform: scale(1) rotate(360deg);
+                opacity: 1;
+            }
+        }
+
+        .connect-btn-overlay::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color), var(--primary-color));
+            opacity: 0;
+            transition: opacity 0.3s;
+            animation: rotate-gradient 3s linear infinite;
+            z-index: -1;
+        }
+
+        .connect-btn-overlay:hover::before {
+            opacity: 0.8;
+        }
+
+        .connect-btn-overlay:hover {
+            transform: scale(1.15) rotate(5deg);
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow:
+                0 15px 60px rgba(6, 182, 212, 0.7),
+                0 0 0 30px rgba(6, 182, 212, 0);
+            animation: none;
+        }
+
+        .connect-btn-overlay:active {
+            transform: scale(0.95);
+            transition: all 0.1s;
+        }
+
+        .connect-btn-overlay i {
+            font-size: 2.5rem;
+            color: white;
+            transition: all 0.3s;
+            animation: bounce-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .connect-btn-overlay:hover i {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+        }
+
+        /* Ripple effect on click */
+        @keyframes ripple {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        .connect-btn-overlay::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(0);
+            opacity: 0;
+        }
+
+        .connect-btn-overlay.clicked::after {
+            animation: ripple 0.6s ease-out;
+        }
+
+        .recording-item {
+            background: rgba(51, 65, 85, 0.3);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: var(--radius);
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .recording-item:hover {
+            background: rgba(51, 65, 85, 0.5);
+            border-color: var(--primary-color);
+        }
+
+        /* Mobile sidebar */
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 40;
+                transform: translateX(-100%);
+                width: 280px;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 30;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s;
+            }
+
+            .sidebar-overlay.active {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .camera-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .camera-selection-buttons {
+                flex-wrap: wrap;
+                justify-content: flex-start;
+            }
+
+            .camera-selection-buttons button {
+                flex: 0 0 auto;
+                padding: 0.5rem 0.75rem;
+                font-size: 0.75rem;
+            }
+
+            .right-sidebar {
+                margin-top: 1.5rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .header-title {
+                font-size: 1rem;
+            }
+
+            .camera-selection-buttons button {
+                padding: 0.4rem 0.6rem;
+                font-size: 0.7rem;
+            }
+        }
+
+        /* Metrics toggle animation */
+        .metrics-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            opacity: 1;
+        }
+
+        .metrics-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        /* Hamburger menu */
+        .hamburger {
+            display: none;
+            width: 24px;
+            height: 20px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .hamburger span {
+            display: block;
+            width: 100%;
+            height: 2px;
+            background: #06b6d4;
+            position: absolute;
+            transition: all 0.3s;
+        }
+
+        .hamburger span:nth-child(1) {
+            top: 0;
+        }
+
+        .hamburger span:nth-child(2) {
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .hamburger span:nth-child(3) {
+            bottom: 0;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            top: 50%;
+            transform: translateY(-50%) rotate(45deg);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            bottom: 50%;
+            transform: translateY(50%) rotate(-45deg);
+        }
+
+        @media (max-width: 768px) {
+            .hamburger {
+                display: block;
+            }
+        }
+
+        /* Utility classes */
+        .text-gradient {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Main content scroll container */
+        .main-content-scroll {
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 4px;
+        }
+
+        .main-content-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .main-content-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 4px;
+        }
+
+        .main-content-scroll::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            border-radius: 4px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .main-content-scroll::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #0891b2, #2563eb);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-black to-slate-900 text-slate-100">
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="container mx-auto p-4">
+        <!-- Header -->
+        <header class="flex items-center justify-between py-4 border-b border-slate-700/50 mb-6">
+            <div class="flex items-center space-x-3">
+                <!-- Hamburger Menu (Mobile) -->
+                <div class="hamburger" id="hamburger-menu" onclick="toggleSidebar()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+
+                <i class="fas fa-shield-alt text-cyan-500 text-2xl"></i>
+                <span class="text-xl font-bold text-gradient header-title">NEXTGEN SURVEILLANCE</span>
+            </div>
+
+            <div class="flex items-center space-x-2 md:space-x-4">
+                <!-- Connection Status -->
+                <div id="status-badge" class="badge offline">
+                    <div class="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                    <span class="hidden sm:inline">NOT CONNECTED</span>
+                    <span class="sm:hidden">OFFLINE</span>
+                </div>
+
+                <!-- Current Time -->
+                <div class="text-xs md:text-sm text-slate-400 font-mono" id="current-time">00:00:00</div>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <div class="grid grid-cols-12 gap-6">
+            <!-- Sidebar -->
+            <div id="sidebar" class="sidebar col-span-12 md:col-span-3 lg:col-span-2">
+                <div class="glass rounded-lg">
+                    <div class="p-4">
+                        <nav class="space-y-2">
+                            <a href="#" class="btn btn-ghost w-full justify-start bg-slate-800/70 text-cyan-400">
+                                <i class="fas fa-th-large mr-2"></i>
+                                Dashboard
+                            </a>
+                            <a href="#" onclick="showSection('cameras')" class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-video mr-2"></i>
+                                Cameras
+                            </a>
+                            <a href="#" onclick="showSection('recordings')" class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-folder mr-2"></i>
+                                Recordings
+                            </a>
+                            <a href="{% url 'analytics' %}" class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-chart-line mr-2"></i>
+                                Analytics
+                            </a>
+                            <a href="{% url 'settings' %}" class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                                <i class="fas fa-cog mr-2"></i>
+                                Settings
+                            </a>
+                        </nav>
+
+                        <!-- System Status -->
+                        <div class="mt-8 pt-6 border-t border-slate-700/50">
+                            <div class="text-xs text-slate-500 mb-2 font-mono">SYSTEM STATUS</div>
+                            <div class="space-y-3">
+                                <!-- Connection Health -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <div class="text-xs text-slate-400">Connection</div>
+                                        <div class="text-xs text-slate-400"><span id="connection-percent">0</span>%</div>
+                                    </div>
+                                    <div class="progress">
+                                        <div id="connection-bar" class="progress-bar" style="width: 0%; background: linear-gradient(to right, #ef4444, #dc2626);"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Signal Quality -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <div class="text-xs text-slate-400">Signal Quality</div>
+                                        <div class="text-xs text-slate-400"><span id="quality-percent">0</span>%</div>
+                                    </div>
+                                    <div class="progress">
+                                        <div id="quality-bar" class="progress-bar" style="width: 0%; background: linear-gradient(to right, #06b6d4, #0891b2);"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Dashboard -->
+            <div class="col-span-12 md:col-span-9 lg:col-span-7">
+                <div class="main-content-scroll">
+                <!-- Camera View Section -->
+                <section id="cameras-section">
+                    <div class="glass rounded-lg mb-6">
+                        <div class="border-b border-slate-700/50 p-4">
+                            <div class="flex items-center justify-between flex-wrap gap-4">
+                                <h2 class="text-slate-100 flex items-center font-semibold">
+                                    <i class="fas fa-video text-cyan-500 mr-2"></i>
+                                    Live Camera Feed
+                                </h2>
+
+                                <!-- Camera Selection -->
+                                <div class="flex items-center gap-2 camera-selection-buttons">
+                                    <button onclick="selectCamera('all')" class="btn btn-primary active" id="btn-camera-all">
+                                        <i class="fas fa-th mr-1"></i>
+                                        <span class="hidden sm:inline">All Cameras</span>
+                                        <span class="sm:hidden">All</span>
+                                    </button>
+                                    <button onclick="selectCamera(1)" class="btn btn-primary" id="btn-camera-1">
+                                        <span class="hidden sm:inline">Camera</span> 1
+                                    </button>
+                                    <button onclick="selectCamera(2)" class="btn btn-primary" id="btn-camera-2">
+                                        <span class="hidden sm:inline">Camera</span> 2
+                                    </button>
+                                    <button onclick="selectCamera(3)" class="btn btn-primary" id="btn-camera-3">
+                                        <span class="hidden sm:inline">Camera</span> 3
+                                    </button>
+                                    <button onclick="selectCamera(4)" class="btn btn-primary" id="btn-camera-4">
+                                        <span class="hidden sm:inline">Camera</span> 4
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-6">
+                            <!-- Multi-camera grid (shown by default) -->
+                            <div id="camera-grid-all" class="camera-grid">
+                                <div class="camera-feed">
+                                    <div class="camera-label">Camera 1</div>
+                                    <video id="video-1" class="hidden" autoplay muted></video>
+                                    <div class="flex items-center justify-center h-full text-slate-500">
+                                        <div class="text-center">
+                                            <i class="fas fa-video-slash text-4xl mb-2"></i>
+                                            <p class="text-sm">No Signal</p>
+                                        </div>
+                                    </div>
+                                    <div class="connect-overlay" id="overlay-1" onclick="connectCamera(1, event)">
+                                        <div class="connect-btn-overlay">
+                                            <i class="fas fa-play"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="camera-feed">
+                                    <div class="camera-label">Camera 2</div>
+                                    <video id="video-2" class="hidden" autoplay muted></video>
+                                    <div class="flex items-center justify-center h-full text-slate-500">
+                                        <div class="text-center">
+                                            <i class="fas fa-video-slash text-4xl mb-2"></i>
+                                            <p class="text-sm">No Signal</p>
+                                        </div>
+                                    </div>
+                                    <div class="connect-overlay" id="overlay-2" onclick="connectCamera(2, event)">
+                                        <div class="connect-btn-overlay">
+                                            <i class="fas fa-play"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="camera-feed">
+                                    <div class="camera-label">Camera 3</div>
+                                    <video id="video-3" class="hidden" autoplay muted></video>
+                                    <div class="flex items-center justify-center h-full text-slate-500">
+                                        <div class="text-center">
+                                            <i class="fas fa-video-slash text-4xl mb-2"></i>
+                                            <p class="text-sm">No Signal</p>
+                                        </div>
+                                    </div>
+                                    <div class="connect-overlay" id="overlay-3" onclick="connectCamera(3, event)">
+                                        <div class="connect-btn-overlay">
+                                            <i class="fas fa-play"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="camera-feed">
+                                    <div class="camera-label">Camera 4</div>
+                                    <video id="video-4" class="hidden" autoplay muted></video>
+                                    <div class="flex items-center justify-center h-full text-slate-500">
+                                        <div class="text-center">
+                                            <i class="fas fa-video-slash text-4xl mb-2"></i>
+                                            <p class="text-sm">No Signal</p>
+                                        </div>
+                                    </div>
+                                    <div class="connect-overlay" id="overlay-4" onclick="connectCamera(4, event)">
+                                        <div class="connect-btn-overlay">
+                                            <i class="fas fa-play"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Single camera view (hidden by default) -->
+                            <div id="camera-grid-single" class="camera-grid single hidden">
+                                <div class="camera-feed">
+                                    <div class="camera-label" id="single-camera-label">Camera 1</div>
+                                    <video id="video-single" class="hidden" autoplay muted controls></video>
+                                    <div class="flex items-center justify-center h-full text-slate-500">
+                                        <div class="text-center">
+                                            <i class="fas fa-video-slash text-4xl mb-2"></i>
+                                            <p class="text-sm">No Signal</p>
+                                        </div>
+                                    </div>
+                                    <div class="connect-overlay" id="overlay-single" onclick="connectSingleCamera(event)">
+                                        <div class="connect-btn-overlay">
+                                            <i class="fas fa-play"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Metrics -->
+                    <div class="glass rounded-lg">
+                        <div class="border-b border-slate-700/50 p-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-slate-100 font-semibold">System Metrics</h3>
+                                <button onclick="toggleMetrics()" class="btn btn-ghost p-2" id="metrics-toggle-btn" title="Toggle metrics">
+                                    <i class="fas fa-chevron-up" id="metrics-toggle-icon"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="metrics-content" id="metrics-content">
+                            <div class="p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <!-- Connection Health -->
+                                <div class="bg-slate-800/50 rounded-lg border border-blue-500/30 p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-sm text-slate-400">Connection Health</div>
+                                        <i class="fas fa-wifi text-blue-500"></i>
+                                    </div>
+                                    <div class="text-2xl font-bold mb-1 text-slate-100">
+                                        <span id="health-value">0</span>%
+                                    </div>
+                                </div>
+
+                                <!-- FPS -->
+                                <div class="bg-slate-800/50 rounded-lg border border-purple-500/30 p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-sm text-slate-400">Frame Rate</div>
+                                        <i class="fas fa-video text-purple-500"></i>
+                                    </div>
+                                    <div class="text-2xl font-bold mb-1 text-slate-100">
+                                        <span id="fps-display">0</span> <span class="text-sm">fps</span>
+                                    </div>
+                                </div>
+
+                                <!-- Resolution -->
+                                <div class="bg-slate-800/50 rounded-lg border border-cyan-500/30 p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-sm text-slate-400">Resolution</div>
+                                        <i class="fas fa-expand text-cyan-500"></i>
+                                    </div>
+                                    <div class="text-lg font-bold mb-1 text-slate-100">
+                                        <span id="resolution-display">1920x1080</span>
+                                    </div>
+                                </div>
+
+                                <!-- CPU Usage -->
+                                <div class="bg-slate-800/50 rounded-lg border border-amber-500/30 p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-sm text-slate-400">CPU Usage</div>
+                                        <i class="fas fa-microchip text-amber-500"></i>
+                                    </div>
+                                    <div class="text-2xl font-bold mb-1 text-slate-100">
+                                        <span id="cpu-usage">0</span>%
+                                    </div>
+                                    <div class="progress mt-2">
+                                        <div id="cpu-bar" class="progress-bar" style="width: 0%; background: linear-gradient(to right, #f59e0b, #d97706);"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Memory Usage -->
+                                <div class="bg-slate-800/50 rounded-lg border border-green-500/30 p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-sm text-slate-400">Memory</div>
+                                        <i class="fas fa-memory text-green-500"></i>
+                                    </div>
+                                    <div class="text-2xl font-bold mb-1 text-slate-100">
+                                        <span id="memory-usage">0</span>%
+                                    </div>
+                                    <div class="text-xs text-slate-500 mt-1">
+                                        <span id="memory-used">0 MB</span> / <span id="memory-total">0 MB</span>
+                                    </div>
+                                </div>
+
+                                <!-- Network Stats -->
+                                <div class="bg-slate-800/50 rounded-lg border border-pink-500/30 p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-sm text-slate-400">Network</div>
+                                        <i class="fas fa-network-wired text-pink-500"></i>
+                                    </div>
+                                    <div class="text-xs text-slate-500 space-y-1">
+                                        <div class="flex items-center justify-between">
+                                            <span>Upload:</span>
+                                            <span class="text-pink-400 font-mono" id="network-upload">0 Mbps</span>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span>Latency:</span>
+                                            <span class="text-cyan-400 font-mono" id="network-latency">0 ms</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Recordings Section (hidden by default) -->
+                <section id="recordings-section" class="hidden">
+                    <div class="glass rounded-lg">
+                        <div class="border-b border-slate-700/50 p-4">
+                            <h2 class="text-slate-100 flex items-center font-semibold">
+                                <i class="fas fa-folder text-cyan-500 mr-2"></i>
+                                Recorded Videos
+                            </h2>
+                        </div>
+                        <div class="p-6">
+                            <!-- Video Player -->
+                            <div class="mb-6">
+                                <div class="camera-feed single">
+                                    <video id="recording-player" controls class="w-full rounded-lg" style="max-height: 500px;">
+                                        <source src="" type="video/mp4">
+                                        Your browser does not support video playback.
+                                    </video>
+                                </div>
+                            </div>
+
+                            <!-- Recordings List -->
+                            <div class="space-y-2 max-h-96 overflow-y-auto">
+                                <div class="text-sm text-slate-400 mb-3">Recent Recordings</div>
+
+                                <!-- Sample recordings - replace with dynamic data -->
+                                <div class="recording-item" onclick="playRecording('recording1.mp4', 'Camera 1 - 2025-10-06 14:30')">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-play-circle text-cyan-500 text-xl"></i>
+                                            <div>
+                                                <div class="text-sm font-medium text-slate-200">Camera 1 - 2025-10-06 14:30</div>
+                                                <div class="text-xs text-slate-500">Duration: 1:45:23 • Size: 2.3 GB</div>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-download text-slate-500 hover:text-cyan-500"></i>
+                                    </div>
+                                </div>
+
+                                <div class="recording-item" onclick="playRecording('recording2.mp4', 'Camera 2 - 2025-10-06 12:15')">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-play-circle text-cyan-500 text-xl"></i>
+                                            <div>
+                                                <div class="text-sm font-medium text-slate-200">Camera 2 - 2025-10-06 12:15</div>
+                                                <div class="text-xs text-slate-500">Duration: 0:32:10 • Size: 892 MB</div>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-download text-slate-500 hover:text-cyan-500"></i>
+                                    </div>
+                                </div>
+
+                                <div class="recording-item" onclick="playRecording('recording3.mp4', 'Camera 3 - 2025-10-05 18:45')">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <i class="fas fa-play-circle text-cyan-500 text-xl"></i>
+                                            <div>
+                                                <div class="text-sm font-medium text-slate-200">Camera 3 - 2025-10-05 18:45</div>
+                                                <div class="text-xs text-slate-500">Duration: 2:14:56 • Size: 3.1 GB</div>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-download text-slate-500 hover:text-cyan-500"></i>
+                                    </div>
+                                </div>
+
+                                <div class="text-center py-8 text-slate-500">
+                                    <i class="fas fa-folder-open text-4xl mb-2 opacity-50"></i>
+                                    <p class="text-sm">No more recordings</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                </div>
+            </div>
+
+            <!-- Right sidebar - Camera Controls -->
+            <div class="col-span-12 lg:col-span-3 right-sidebar">
+                <div class="space-y-6">
+                    <!-- Connection Control -->
+                    <div class="glass rounded-lg">
+                        <div class="p-4 border-b border-slate-700/50">
+                            <h3 class="text-slate-100 text-base font-medium">Connection</h3>
+                        </div>
+                        <div class="p-4">
+                            <div class="flex gap-2 mb-3">
+                                <button id="connect-btn" onclick="handleConnect()" class="btn btn-primary flex-1">
+                                    <i class="fas fa-plug mr-2"></i>
+                                    Connect
+                                </button>
+                                <button id="stop-btn" onclick="handleStop()" class="btn bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                    <i class="fas fa-stop mr-2"></i>
+                                    Stop
+                                </button>
+                            </div>
+                            <div class="text-xs text-slate-500 text-center">
+                                Status: <span id="status-text" class="text-slate-400 font-mono">NOT CONNECTED</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recording Control -->
+                    <div class="glass rounded-lg">
+                        <div class="p-4 border-b border-slate-700/50">
+                            <h3 class="text-slate-100 text-base font-medium">Recording</h3>
+                        </div>
+                        <div class="p-4">
+                            <button id="record-btn" onclick="toggleRecording()" class="btn btn-primary w-full mb-3" disabled>
+                                <i class="fas fa-record-vinyl mr-2 text-red-500"></i>
+                                Start Recording
+                            </button>
+                            <div class="text-xs text-slate-500 text-center">
+                                <span id="recording-status">Ready to record</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // SECURITY SURVEILLANCE DASHBOARD - ENHANCED VERSION
+        // ============================================================================
+        //
+        // 🚀 MIGRATION FROM streaming_dashboard.html TO streaming_dashboard_backup.html
+        // Date: October 6, 2025
+        //
+        // ✅ NEW FEATURES ADDED:
+        // 1. Real-time FPS Counter (createFpsCounter function)
+        // 2. Type-based message routing (handleCameraMessage with switch/case)
+        // 3. Connection status handling (handleConnectionStatus)
+        // 4. System metrics support (handleSystemMetrics) - ready for future use
+        // 5. Error alert handling (handleErrorAlert) - ready for future use
+        //
+        // 📝 MESSAGE FLOW:
+        // Pi Camera → Protobuf → Django Consumer → JSON → This Dashboard
+        //
+        // 📨 SUPPORTED MESSAGE TYPES:
+        // - connection_status: Real-time camera connection updates
+        // - camera_settings_update: Camera brightness/settings (legacy)
+        // - system_metrics: CPU, memory, network stats (future)
+        // - error_alert: System errors/warnings (future)
+        //
+        // 🔄 CHANGES FROM OLD VERSION:
+        // - REMOVED: Fake metrics simulation (startMetricsSimulation)
+        // - ADDED: Real FPS counter based on actual message rate
+        // - ADDED: Type-based message routing for extensibility
+        // - IMPROVED: Error handling with better logging
+        //
+        // 📖 For detailed explanation, see: docs/Message_Flow_Explained.md
+        // ============================================================================
+
+        let cameraWebSocket = null;
+        let isConnected = false;
+        let isRecording = false;
+        let currentView = 'all';
+
+        // === NEW: FPS COUNTER (Real-time message rate tracking) ===
+        // This function creates a counter that tracks how many messages we receive per second
+        // Think of it like counting how many text messages you get per minute
+        function createFpsCounter(windowMs = 1000) {
+            // Stores arrival timestamps (ms, from performance.now())
+            const ts = [];
+
+            function prune(now) {
+                // Remove anything older than the window (like deleting old messages)
+                while (ts.length && now - ts[0] > windowMs) ts.shift();
+            }
+
+            return {
+                // Call on each received frame/message
+                tick(now = performance.now()) {
+                    ts.push(now);
+                    prune(now);
+                },
+
+                // Current frames-per-second over the last windowMs
+                fps(now = performance.now()) {
+                    prune(now);
+                    return ts.length * 1000 / windowMs;
+                },
+            };
+        }
+
+        const fpsCounter = createFpsCounter(1000);  // Update every 1 second
+
+        // Update time display
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('current-time').textContent = timeStr;
+        }
+
+        // Camera selection
+        function selectCamera(cameraId) {
+            currentView = cameraId;
+
+            // Update button states
+            document.querySelectorAll('[id^="btn-camera-"]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`btn-camera-${cameraId}`).classList.add('active');
+
+            // Show/hide appropriate view
+            if (cameraId === 'all') {
+                document.getElementById('camera-grid-all').classList.remove('hidden');
+                document.getElementById('camera-grid-single').classList.add('hidden');
+            } else {
+                document.getElementById('camera-grid-all').classList.add('hidden');
+                document.getElementById('camera-grid-single').classList.remove('hidden');
+                document.getElementById('single-camera-label').textContent = `Camera ${cameraId}`;
+            }
+        }
+
+        // Section switching
+        function showSection(section) {
+            if (section === 'cameras') {
+                document.getElementById('cameras-section').classList.remove('hidden');
+                document.getElementById('recordings-section').classList.add('hidden');
+            } else if (section === 'recordings') {
+                document.getElementById('cameras-section').classList.add('hidden');
+                document.getElementById('recordings-section').classList.remove('hidden');
+            }
+        }
+
+        // Recording playback
+        function playRecording(filename, title) {
+            const player = document.getElementById('recording-player');
+            player.src = `/media/recordings/${filename}`;
+            player.load();
+            player.play();
+            console.log('Playing recording:', title);
+        }
+
+        // Recording control
+        function toggleRecording() {
+            isRecording = !isRecording;
+            const recordBtn = document.getElementById('record-btn');
+            const recordingStatus = document.getElementById('recording-status');
+
+            if (isRecording) {
+                recordBtn.innerHTML = '<i class="fas fa-stop mr-2"></i>Stop Recording';
+                recordBtn.classList.add('bg-red-600');
+                recordingStatus.textContent = 'Recording...';
+            } else {
+                recordBtn.innerHTML = '<i class="fas fa-record-vinyl mr-2 text-red-500"></i>Start Recording';
+                recordBtn.classList.remove('bg-red-600');
+                recordingStatus.textContent = 'Ready to record';
+            }
+        }
+
+        // Connect individual camera
+        function connectCamera(cameraId, event) {
+            console.log(`🔌 Connecting to Camera ${cameraId}...`);
+
+            // Add ripple effect to button
+            const button = event.currentTarget.querySelector('.connect-btn-overlay');
+            button.classList.add('clicked');
+            setTimeout(() => button.classList.remove('clicked'), 600);
+
+            // Hide the overlay with delay for animation
+            const overlay = document.getElementById(`overlay-${cameraId}`);
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 200);
+
+            // Show the video element (simulated for now)
+            const video = document.getElementById(`video-${cameraId}`);
+            setTimeout(() => {
+                video.classList.remove('hidden');
+            }, 300);
+
+            // TODO: Initialize actual video stream here
+            // For now, just showing the video element
+            console.log(`✅ Camera ${cameraId} connected`);
+        }
+
+        // Connect single camera view
+        function connectSingleCamera(event) {
+            console.log('🔌 Connecting to single camera view...');
+
+            // Add ripple effect to button
+            const button = event.currentTarget.querySelector('.connect-btn-overlay');
+            button.classList.add('clicked');
+            setTimeout(() => button.classList.remove('clicked'), 600);
+
+            // Hide the overlay with delay for animation
+            const overlay = document.getElementById('overlay-single');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 200);
+
+            // Show the video element
+            const video = document.getElementById('video-single');
+            setTimeout(() => {
+                video.classList.remove('hidden');
+            }, 300);
+
+            console.log('✅ Single camera connected');
+        }
+
+        // Connect to camera system
+        function handleConnect() {
+            console.log('🔌 Connecting to camera system...');
+
+            const wsUrl = `ws://${window.location.host}/ws/camera/`;
+            cameraWebSocket = new WebSocket(wsUrl);
+
+            cameraWebSocket.onopen = function() {
+                console.log('✅ Connected to camera system');
+                showConnectedState();
+            };
+
+            cameraWebSocket.onmessage = function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+
+                    // === NEW: Type-based message routing ===
+                    // Check the message TYPE to know how to handle it
+                    // Like checking the subject line of an email
+                    handleCameraMessage(message);
+
+                } catch (e) {
+                    console.error('❌ Error parsing message from Pi:', e, 'Raw message:', event.data);
+                }
+            };
+
+            cameraWebSocket.onclose = function() {
+                console.log('❌ Disconnected from camera system');
+                showDisconnectedState();
+            };
+        }
+
+        // Stop/Disconnect from camera system
+        function handleStop() {
+            console.log('⏹️ Stopping camera system...');
+
+            if (cameraWebSocket) {
+                cameraWebSocket.close();
+                cameraWebSocket = null;
+            }
+
+            // Reset all camera feeds
+            for (let i = 1; i <= 4; i++) {
+                const overlay = document.getElementById(`overlay-${i}`);
+                overlay.classList.remove('hidden');
+
+                const video = document.getElementById(`video-${i}`);
+                video.classList.add('hidden');
+                video.src = '';
+            }
+
+            // Reset single camera view
+            const overlaySingle = document.getElementById('overlay-single');
+            overlaySingle.classList.remove('hidden');
+
+            const videoSingle = document.getElementById('video-single');
+            videoSingle.classList.add('hidden');
+            videoSingle.src = '';
+
+            showDisconnectedState();
+            console.log('✅ Camera system stopped');
+        }
+
+        // === NEW: Enhanced message handler with type-based routing ===
+        // This function receives messages from Django and routes them based on TYPE
+        // Like a mail sorter checking labels on envelopes
+        function handleCameraMessage(message) {
+            // Route based on message type
+            switch(message.type) {
+                case 'connection_status':
+                    // === NEW: Handle real-time connection status from Pi ===
+                    handleConnectionStatus(message);
+                    break;
+
+                case 'camera_settings_update':
+                    // Original: Handle camera settings updates
+                    handleCameraSettings(message);
+                    break;
+
+                case 'system_metrics':
+                    // Future: Handle real system metrics (CPU, memory, network)
+                    handleSystemMetrics(message);
+                    break;
+
+                case 'error_alert':
+                    // Future: Handle error notifications
+                    handleErrorAlert(message);
+                    break;
+
+                default:
+                    console.warn('⚠️ Unknown message type:', message.type, message);
+            }
+        }
+
+        // === NEW: Handle connection status messages ===
+        // This is called when Pi sends "connection_status" messages
+        function handleConnectionStatus(message) {
+            if (typeof message.isConnected !== 'undefined') {
+                // Count this message for FPS calculation
+                fpsCounter.tick();
+
+                // Update FPS display with real data from messages
+                const currentFps = fpsCounter.fps();
+                document.getElementById('fps-display').textContent = currentFps.toFixed(1);
+
+                // Log for debugging (comment out in production)
+                // console.log('📶 Pi camera status:', message.isConnected, '| FPS:', currentFps.toFixed(1));
+
+                // Update UI based on connection status
+                if (message.isConnected) {
+                    // Camera is working - keep connection healthy
+                    document.getElementById('health-value').textContent = '100';
+                } else {
+                    // Camera disconnected - show warning
+                    console.warn('⚠️ Camera feed interrupted!');
+                    document.getElementById('health-value').textContent = '50';
+                }
+            }
+        }
+
+        // Handle camera settings updates
+        function handleCameraSettings(message) {
+            // Original functionality - update brightness controls if they exist
+            const brightnessSlider = document.getElementById('camera-brightness-slider');
+            const brightnessValue = document.getElementById('camera-brightness-value');
+
+            if (brightnessSlider && message.brightness) {
+                brightnessSlider.value = message.brightness;
+                if (brightnessValue) {
+                    brightnessValue.textContent = message.brightness;
+                }
+            }
+        }
+
+        // === NEW: Handle system metrics (for future use) ===
+        function handleSystemMetrics(message) {
+            // Update CPU
+            if (message.cpu !== undefined) {
+                document.getElementById('cpu-usage').textContent = Math.round(message.cpu);
+                document.getElementById('cpu-bar').style.width = `${message.cpu}%`;
+            }
+
+            // Update Memory
+            if (message.memory !== undefined) {
+                document.getElementById('memory-usage').textContent = Math.round(message.memory);
+                if (message.memory_used_mb && message.memory_total_mb) {
+                    document.getElementById('memory-used').textContent = message.memory_used_mb;
+                    document.getElementById('memory-total').textContent = message.memory_total_mb;
+                }
+            }
+
+            // Update Network
+            if (message.network_mbps !== undefined) {
+                document.getElementById('network-upload').textContent = `${message.network_mbps.toFixed(2)} Mbps`;
+            }
+
+            if (message.latency_ms !== undefined) {
+                document.getElementById('network-latency').textContent = `${message.latency_ms} ms`;
+            }
+
+            // Update FPS if provided
+            if (message.fps !== undefined) {
+                document.getElementById('fps-display').textContent = message.fps.toFixed(1);
+            }
+        }
+
+        // === NEW: Handle error alerts (for future use) ===
+        function handleErrorAlert(message) {
+            console.error('🚨 System alert:', message.message);
+            // Could show a notification popup here
+            alert(`System Alert: ${message.message}`);
+        }
+
+        function showConnectedState() {
+            isConnected = true;
+            document.getElementById('status-badge').className = 'badge live';
+            document.getElementById('status-badge').innerHTML = '<div class="h-1.5 w-1.5 rounded-full bg-green-500"></div>CONNECTED';
+            document.getElementById('status-text').textContent = 'CONNECTED';
+
+            // Update connect button
+            const connectBtn = document.getElementById('connect-btn');
+            connectBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Connected';
+            connectBtn.disabled = true;
+            connectBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // Enable stop button
+            const stopBtn = document.getElementById('stop-btn');
+            stopBtn.disabled = false;
+
+            document.getElementById('record-btn').disabled = false;
+
+            // Update connection health
+            document.getElementById('connection-percent').textContent = '100';
+            document.getElementById('connection-bar').style.width = '100%';
+            document.getElementById('connection-bar').style.background = 'linear-gradient(to right, #10b981, #059669)';
+
+            document.getElementById('quality-percent').textContent = '95';
+            document.getElementById('quality-bar').style.width = '95%';
+
+            document.getElementById('health-value').textContent = '100';
+
+            // === REMOVED: startMetricsSimulation() ===
+            // FPS and metrics will now come from REAL data via WebSocket messages!
+            // The handleConnectionStatus and handleSystemMetrics functions update these automatically
+
+            console.log('✅ Connected - waiting for real-time data from Pi...');
+        }
+
+        function showDisconnectedState() {
+            isConnected = false;
+            document.getElementById('status-badge').className = 'badge offline';
+            document.getElementById('status-badge').innerHTML = '<div class="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>NOT CONNECTED';
+            document.getElementById('status-text').textContent = 'NOT CONNECTED';
+
+            // Reset connect button
+            const connectBtn = document.getElementById('connect-btn');
+            connectBtn.innerHTML = '<i class="fas fa-plug mr-2"></i>Connect';
+            connectBtn.disabled = false;
+            connectBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            // Disable stop button
+            const stopBtn = document.getElementById('stop-btn');
+            stopBtn.disabled = true;
+
+            document.getElementById('record-btn').disabled = true;
+
+            // Reset metrics
+            document.getElementById('connection-percent').textContent = '0';
+            document.getElementById('connection-bar').style.width = '0%';
+            document.getElementById('quality-percent').textContent = '0';
+            document.getElementById('quality-bar').style.width = '0%';
+            document.getElementById('health-value').textContent = '0';
+            document.getElementById('fps-display').textContent = '0';
+            document.getElementById('cpu-usage').textContent = '0';
+            document.getElementById('cpu-bar').style.width = '0%';
+            document.getElementById('memory-usage').textContent = '0';
+        }
+
+        // Send camera settings
+        function sendCameraSetting(setting, value) {
+            if (cameraWebSocket && cameraWebSocket.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'update_camera_settings',
+                    setting: setting,
+                    value: value
+                };
+                cameraWebSocket.send(JSON.stringify(message));
+                console.log(`📡 Sent ${setting}: ${value}`);
+            }
+        }
+
+        // === DEPRECATED: Metrics simulation (now using real data from Pi) ===
+        // This function is kept for backward compatibility but not used
+        // Real metrics come from handleSystemMetrics() via WebSocket
+        function startMetricsSimulation() {
+            console.warn('⚠️ startMetricsSimulation is deprecated - using real WebSocket data instead');
+            // Uncomment below to use fake data for testing without Pi connection
+            /*
+            setInterval(() => {
+                if (isConnected) {
+                    const cpu = Math.floor(Math.random() * 40 + 30);
+                    const memory = Math.floor(Math.random() * 30 + 40);
+                    const upload = (Math.random() * 3 + 2).toFixed(2);
+                    const latency = Math.floor(Math.random() * 30 + 10);
+
+                    document.getElementById('cpu-usage').textContent = cpu;
+                    document.getElementById('cpu-bar').style.width = `${cpu}%`;
+                    document.getElementById('memory-usage').textContent = memory;
+                    document.getElementById('memory-used').textContent = Math.floor(memory * 10.24);
+                    document.getElementById('memory-total').textContent = '1024';
+                    document.getElementById('network-upload').textContent = `${upload} Mbps`;
+                    document.getElementById('network-latency').textContent = `${latency} ms`;
+                }
+            }, 2000);
+            */
+        }
+
+        // Setup controls
+        function setupControls() {
+            // Camera settings removed - moved to settings page
+        }
+
+        // Toggle mobile sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const hamburger = document.getElementById('hamburger-menu');
+
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+            hamburger.classList.toggle('active');
+        }
+
+        // Toggle metrics section
+        let metricsVisible = true;
+        function toggleMetrics() {
+            metricsVisible = !metricsVisible;
+            const metricsContent = document.getElementById('metrics-content');
+            const toggleIcon = document.getElementById('metrics-toggle-icon');
+
+            if (metricsVisible) {
+                metricsContent.classList.remove('collapsed');
+                toggleIcon.className = 'fas fa-chevron-up';
+            } else {
+                metricsContent.classList.add('collapsed');
+                toggleIcon.className = 'fas fa-chevron-down';
+            }
+        }
+
+        // Initialize dashboard
+        function initDashboard() {
+            console.log('🚀 Security Surveillance Dashboard Starting...');
+
+            setupControls();
+            updateTime();
+            setInterval(updateTime, 1000);
+
+            console.log('✅ Dashboard Ready');
+        }
+
+        // Start the application
+        initDashboard();
+    </script>
+</body>
+</html>
