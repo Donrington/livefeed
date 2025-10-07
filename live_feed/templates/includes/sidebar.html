@@ -10,7 +10,7 @@
                     <i class="fas fa-video mr-2"></i>
                     Cameras
                 </a>
-                <a href="{% url 'live_feed' %}" class="btn btn-ghost w-full justify-start text-slate-400 hover:text-slate-100">
+                <a href="{% url 'recordings' %}" class="btn btn-ghost w-full justify-start {% if request.resolver_match.url_name == 'recordings' %}bg-slate-800/70 text-cyan-400{% else %}text-slate-400 hover:text-slate-100{% endif %}">
                     <i class="fas fa-folder mr-2"></i>
                     Recordings
                 </a>
