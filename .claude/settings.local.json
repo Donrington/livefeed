@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(protoc:*)",
+      "Bash(python -m grpc_tools.protoc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh:*)",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

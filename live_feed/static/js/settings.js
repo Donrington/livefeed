@@ -50,11 +50,8 @@ function connectWebSocket() {
             const data = JSON.parse(event.data);
 
             if (data.type === 'camera_status') {
-                // Update sliders with current camera settings from Pi
+                // Update slider with current camera setting from Pi
                 updateSliderValue('brightness', data.brightness);
-                updateSliderValue('contrast', data.contrast);
-                updateSliderValue('exposure', data.exposure);
-                updateSliderValue('focus', data.focus);
             }
         } catch (error) {
             console.error('Error parsing WebSocket message:', error);

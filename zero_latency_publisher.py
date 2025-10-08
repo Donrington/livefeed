@@ -164,9 +164,6 @@ class ZeroLatencyPublisher:
         """ Initialize camera settings with default values."""
         self.camera_settings = {
             'brightness': 0,    # -130 to +130
-            'contrast': 0,      # -130 to +130
-            'exposure': -5,     # multiplied by 10 for protobuf (send -50)
-            'focus': 0          # 0 to 500
         }
         self.settings_lock = threading.Lock()
 
@@ -269,34 +266,12 @@ class ZeroLatencyPublisher:
 
         with self.settings_lock:
             try:
-                # Brightness
+                # Brightness only
                 result = self.cap.set(cv2.CAP_PROP_BRIGHTNESS, self.camera_settings['brightness'])
                 if result:
                     log.info(f"✓ Brightness set to {self.camera_settings['brightness']}")
                 else:
                     log.warning("✗ Camera does not support brightness control")
-
-                # Contrast
-                result = self.cap.set(cv2.CAP_PROP_CONTRAST, self.camera_settings['contrast'])
-                if result:
-                    log.info(f"✓ Contrast set to {self.camera_settings['contrast']}")
-                else:
-                    log.warning("✗ Camera does not support contrast control")
-
-                # Exposure (camera accepts floats)
-                result = self.cap.set(cv2.CAP_PROP_EXPOSURE, self.camera_settings['exposure'])
-                if result:
-                    log.info(f"✓ Exposure set to {self.camera_settings['exposure']}")
-                else:
-                    log.warning("✗ Camera does not support manual exposure control")
-
-                # Focus (disable autofocus first)
-                self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-                result = self.cap.set(cv2.CAP_PROP_FOCUS, self.camera_settings['focus'])
-                if result:
-                    log.info(f"✓ Focus set to {self.camera_settings['focus']}")
-                else:
-                    log.warning("✗ Camera does not support manual focus control")
 
             except Exception as e:
                 log.error(f"Error applying camera settings: {e}")
@@ -304,49 +279,29 @@ class ZeroLatencyPublisher:
     def update_camera_setting(self, setting, value):
         """Update a specific camera setting"""
         with self.settings_lock:
-            if setting in self.camera_settings:
+            if setting == 'brightness' and setting in self.camera_settings:
                 self.camera_settings[setting] = value
                 log.info(f"Updated {setting} to {value}")
 
                 # Apply the setting immediately to camera
                 if self.cap and self.cap.isOpened():
                     try:
-                        if setting == 'brightness':
-                            result = self.cap.set(cv2.CAP_PROP_BRIGHTNESS, value)
-                            if not result:
-                                log.warning(f"Camera does not support brightness control")
-                        elif setting == 'contrast':
-                            result = self.cap.set(cv2.CAP_PROP_CONTRAST, value)
-                            if not result:
-                                log.warning(f"Camera does not support contrast control")
-                        elif setting == 'exposure':
-                            result = self.cap.set(cv2.CAP_PROP_EXPOSURE, value)
-                            if not result:
-                                log.warning(f"Camera does not support manual exposure control")
-                        elif setting == 'focus':
-                            self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-                            result = self.cap.set(cv2.CAP_PROP_FOCUS, value)
-                            if not result:
-                                log.warning(f"Camera does not support manual focus control")
-
-                        log.info(f"Successfully applied {setting} = {value}")
+                        result = self.cap.set(cv2.CAP_PROP_BRIGHTNESS, value)
+                        if result:
+                            log.info(f"✓ Applied brightness = {value}")
+                        else:
+                            log.warning("✗ Camera does not support brightness control")
                     except Exception as e:
-                        log.error(f"Error applying {setting}: {e}")
-
-                # Send updated status to Django
-                self.send_camera_status()
+                        log.error(f"Error applying brightness: {e}")
             else:
-                log.warning(f"Unknown setting: {setting}")
+                log.warning(f"Unknown or unsupported setting: {setting}")
 
     def send_camera_status(self):
         """Send current camera status including settings to Django"""
         with self.settings_lock:
             self.cam_status.isConnected = (self.cap is not None and self.cap.isOpened())
             self.cam_status.brightness = self.camera_settings['brightness']
-            self.cam_status.contrast = self.camera_settings['contrast']
-            # Exposure is stored as float but sent as int (multiply by 10)
-            self.cam_status.exposure = int(self.camera_settings['exposure'] * 10)
-            self.cam_status.focus = self.camera_settings['focus']
+            self.cam_status.fps = self.current_fps
 
         try:
             to_async_queue.put(self.cam_status.SerializeToString(), block=False)
@@ -410,9 +365,7 @@ class ZeroLatencyPublisher:
             with self.settings_lock:
                 self.cam_status.isConnected = ret
                 self.cam_status.brightness = self.camera_settings['brightness']
-                self.cam_status.contrast = self.camera_settings['contrast']
-                self.cam_status.exposure = int(self.camera_settings['exposure'] * 10)
-                self.cam_status.focus = self.camera_settings['focus']
+                self.cam_status.fps = self.current_fps
 
             if not ret:
                 continue
