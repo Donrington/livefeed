@@ -4,5 +4,19 @@
 *.pyo
 *.pyd 
 app/__pycache__
-      
+BEFORE_AFTER_COMPARISON.md
+QUICK_START_GUIDE.md
+REFACTORING_SUMMARY.md
+ROUTES_UPDATED.md
+STATIC_FILES_FIX.md
+.env
+.env.*
+.ipynb_checkpoints
+.vscode
+__pycache__
+*.log
+RECORDINGS_PAGE_UPDATE.md
+CAMERA_STREAM_FIX.md
+UI_Migration_Summary.md
+
 
