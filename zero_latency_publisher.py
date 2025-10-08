@@ -30,6 +30,7 @@ log = logging.getLogger(__name__)
 
 to_async_queue =  queue.Queue()   # main thread -> async thread
 cam_status = messages_pb2.CameraStatus()
+publisher_instance = None  # Global reference to publisher for WebSocket callbacks
 
 async def writer(ws: websockets.WebSocketClientProtocol, stop_event: asyncio.Event):
     while not stop_event.is_set():
@@ -44,12 +45,29 @@ async def writer(ws: websockets.WebSocketClientProtocol, stop_event: asyncio.Eve
 async def reader(ws: websockets.WebSocketClientProtocol, stop_event: asyncio.Event):
     """
     Reader coroutine to handle incoming messages from the WebSocket server.
+    Processes CameraSettingsCommand messages from Django.
     """
+    global publisher_instance
     while not stop_event.is_set():
         try:
             async for message in ws:
-                print(f"Received message: {message}")
-                # Process incoming messages here
+                # Parse incoming protobuf message
+                try:
+                    cmd = messages_pb2.CameraSettingsCommand()
+                    cmd.ParseFromString(message)
+
+                    # Apply the setting change to the camera
+                    if publisher_instance:
+                        # For exposure, divide by 10 (protobuf sends int, camera expects float)
+                        value = cmd.value / 10.0 if cmd.setting == 'exposure' else cmd.value
+                        publisher_instance.update_camera_setting(cmd.setting, value)
+                        log.info(f"Applied setting: {cmd.setting} = {value}")
+                    else:
+                        log.warning("Publisher instance not available")
+
+                except Exception as parse_error:
+                    log.error(f"Failed to parse command: {parse_error}")
+
         except websockets.ConnectionClosed:
             log.info("websocket connection closed")
             break
@@ -57,6 +75,8 @@ async def reader(ws: websockets.WebSocketClientProtocol, stop_event: asyncio.Eve
             log.info(f"Error in reader task: {e}")
             break
 
+
+# NEW: WebSocket handler with auto-reconnect
 async def WebSocketHandler(stop_event: asyncio.Event ):
     uri = f"ws://{NetworkConfig.PI_VPN_IP}:{NetworkConfig.WEBSOCKET_PORT}/ws/camera/"
     log.info (f"connecting to {uri}")
@@ -140,7 +160,16 @@ class ZeroLatencyPublisher:
         self.fps_counter = 0
         self.fps_timer = time.time()
         self.current_fps = 0
-        
+
+        """ Initialize camera settings with default values."""
+        self.camera_settings = {
+            'brightness': 0,    # -130 to +130
+            'contrast': 0,      # -130 to +130
+            'exposure': -5,     # multiplied by 10 for protobuf (send -50)
+            'focus': 0          # 0 to 500
+        }
+        self.settings_lock = threading.Lock()
+
         atexit.register(self.stop)
         signal.signal(signal.SIGINT, self.signal_handler)
      
@@ -223,12 +252,75 @@ class ZeroLatencyPublisher:
     
     
     def setup_camera(self):
-        
+
         self.cap = cv2.VideoCapture(self.camera_index)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         self.cap.set(cv2.CAP_PROP_FPS, self.target_fps)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        # Apply initial camera settings
+        self.apply_camera_settings()
+
+    def apply_camera_settings(self):
+        """Apply current camera settings to the camera"""
+        if self.cap is None or not self.cap.isOpened():
+            return
+
+        with self.settings_lock:
+            # Brightness
+            self.cap.set(cv2.CAP_PROP_BRIGHTNESS, self.camera_settings['brightness'])
+
+            # Contrast
+            self.cap.set(cv2.CAP_PROP_CONTRAST, self.camera_settings['contrast'])
+
+            # Exposure (camera accepts floats)
+            self.cap.set(cv2.CAP_PROP_EXPOSURE, self.camera_settings['exposure'])
+
+            # Focus (disable autofocus first)
+            self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+            self.cap.set(cv2.CAP_PROP_FOCUS, self.camera_settings['focus'])
+
+            log.info(f"Applied camera settings: {self.camera_settings}")
+
+    def update_camera_setting(self, setting, value):
+        """Update a specific camera setting"""
+        with self.settings_lock:
+            if setting in self.camera_settings:
+                self.camera_settings[setting] = value
+                log.info(f"Updated {setting} to {value}")
+
+                # Apply the setting immediately to camera
+                if self.cap and self.cap.isOpened():
+                    if setting == 'brightness':
+                        self.cap.set(cv2.CAP_PROP_BRIGHTNESS, value)
+                    elif setting == 'contrast':
+                        self.cap.set(cv2.CAP_PROP_CONTRAST, value)
+                    elif setting == 'exposure':
+                        self.cap.set(cv2.CAP_PROP_EXPOSURE, value)
+                    elif setting == 'focus':
+                        self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+                        self.cap.set(cv2.CAP_PROP_FOCUS, value)
+
+                # Send updated status to Django
+                self.send_camera_status()
+            else:
+                log.warning(f"Unknown setting: {setting}")
+
+    def send_camera_status(self):
+        """Send current camera status including settings to Django"""
+        with self.settings_lock:
+            self.cam_status.isConnected = (self.cap is not None and self.cap.isOpened())
+            self.cam_status.brightness = self.camera_settings['brightness']
+            self.cam_status.contrast = self.camera_settings['contrast']
+            # Exposure is stored as float but sent as int (multiply by 10)
+            self.cam_status.exposure = int(self.camera_settings['exposure'] * 10)
+            self.cam_status.focus = self.camera_settings['focus']
+
+        try:
+            to_async_queue.put(self.cam_status.SerializeToString(), block=False)
+        except queue.Full:
+            log.warning("Queue full, skipping status update")
         
     def setup_ffmpeg(self):
         cmd = [
@@ -282,7 +374,15 @@ class ZeroLatencyPublisher:
         
         while self.isRunning():
             ret, frame = self.cap.read()
-            self.cam_status.isConnected = ret
+
+            # Update camera status with current settings
+            with self.settings_lock:
+                self.cam_status.isConnected = ret
+                self.cam_status.brightness = self.camera_settings['brightness']
+                self.cam_status.contrast = self.camera_settings['contrast']
+                self.cam_status.exposure = int(self.camera_settings['exposure'] * 10)
+                self.cam_status.focus = self.camera_settings['focus']
+
             if not ret:
                 continue
             else:
@@ -319,38 +419,40 @@ class ZeroLatencyPublisher:
         log.info("Stopped publishing frames to client")
 
 def main():
+    global publisher_instance
+
     parser = argparse.ArgumentParser(description='Zero Latency RTSP Publisher')
-    parser.add_argument('--mediamtx-path', '-m', 
+    parser.add_argument('--mediamtx-path', '-m',
                        required=True,
                        help='Path to the MediaMTX executable')
-    parser.add_argument('--ffmpeg-path', '-f', 
+    parser.add_argument('--ffmpeg-path', '-f',
                        required=True,
                        help='Path to the ffmepg executable')
-    parser.add_argument('--camera_index', '-c', 
-                       type=int, 
+    parser.add_argument('--camera_index', '-c',
+                       type=int,
                        default=0,
                        help='Camera index to use (default: 0)')
-    parser.add_argument('--width', '-w', 
-                       type=int, 
+    parser.add_argument('--width', '-w',
+                       type=int,
                        default=640,
                        help='Video width (default: 640)')
-    parser.add_argument('--height', '-ht', 
-                       type=int, 
+    parser.add_argument('--height', '-ht',
+                       type=int,
                        default=480,
                        help='Video height (default: 480)')
-    parser.add_argument('--fps', '-fps', 
-                       type=int, 
+    parser.add_argument('--fps', '-fps',
+                       type=int,
                        default=30,
                        help='Target FPS (default: 30)')
-    parser.add_argument('--bitrate', '-b', 
+    parser.add_argument('--bitrate', '-b',
                        default='800k',
                        help='Video bitrate (default: 800k)')
-    parser.add_argument('--rtsp-url', '-u', 
+    parser.add_argument('--rtsp-url', '-u',
                        default='rtsp://192.168.0.183:8554/zerolatency',
                        help='RTSP URL to publish to (default: rtsp://localhost:8554/zerolatency)')
-    
+
     args = parser.parse_args()
-    
+
     publisher = ZeroLatencyPublisher(
         args.mediamtx_path,
         args.ffmpeg_path,
@@ -361,7 +463,10 @@ def main():
         args.bitrate,
         args.rtsp_url
     )
-    
+
+    # Set global reference for WebSocket callbacks
+    publisher_instance = publisher
+
     async_thread = threading.Thread(target=run_asyncio_loop, args=(publisher, ), daemon=True)
     async_thread.start()
     publisher.start()
