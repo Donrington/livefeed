@@ -2,6 +2,17 @@ syntax = "proto3";
 
 package tutorial;
 
+// Message sent FROM Pi TO Django (status updates)
 message CameraStatus {
   bool isConnected = 1;
+  int32 brightness = 2;      // Current brightness value
+  int32 contrast = 3;        // Current contrast value
+  int32 exposure = 4;        // Current exposure value (multiplied by 10)
+  int32 focus = 5;           // Current focus value
+}
+
+// Message sent FROM Django TO Pi (setting commands)
+message CameraSettingsCommand {
+  string setting = 1;        // "brightness", "contrast", "exposure", "focus"
+  int32 value = 2;           // New value to set
 }
