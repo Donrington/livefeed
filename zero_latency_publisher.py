@@ -268,20 +268,38 @@ class ZeroLatencyPublisher:
             return
 
         with self.settings_lock:
-            # Brightness
-            self.cap.set(cv2.CAP_PROP_BRIGHTNESS, self.camera_settings['brightness'])
+            try:
+                # Brightness
+                result = self.cap.set(cv2.CAP_PROP_BRIGHTNESS, self.camera_settings['brightness'])
+                if result:
+                    log.info(f"✓ Brightness set to {self.camera_settings['brightness']}")
+                else:
+                    log.warning("✗ Camera does not support brightness control")
 
-            # Contrast
-            self.cap.set(cv2.CAP_PROP_CONTRAST, self.camera_settings['contrast'])
+                # Contrast
+                result = self.cap.set(cv2.CAP_PROP_CONTRAST, self.camera_settings['contrast'])
+                if result:
+                    log.info(f"✓ Contrast set to {self.camera_settings['contrast']}")
+                else:
+                    log.warning("✗ Camera does not support contrast control")
 
-            # Exposure (camera accepts floats)
-            self.cap.set(cv2.CAP_PROP_EXPOSURE, self.camera_settings['exposure'])
+                # Exposure (camera accepts floats)
+                result = self.cap.set(cv2.CAP_PROP_EXPOSURE, self.camera_settings['exposure'])
+                if result:
+                    log.info(f"✓ Exposure set to {self.camera_settings['exposure']}")
+                else:
+                    log.warning("✗ Camera does not support manual exposure control")
 
-            # Focus (disable autofocus first)
-            self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-            self.cap.set(cv2.CAP_PROP_FOCUS, self.camera_settings['focus'])
+                # Focus (disable autofocus first)
+                self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+                result = self.cap.set(cv2.CAP_PROP_FOCUS, self.camera_settings['focus'])
+                if result:
+                    log.info(f"✓ Focus set to {self.camera_settings['focus']}")
+                else:
+                    log.warning("✗ Camera does not support manual focus control")
 
-            log.info(f"Applied camera settings: {self.camera_settings}")
+            except Exception as e:
+                log.error(f"Error applying camera settings: {e}")
 
     def update_camera_setting(self, setting, value):
         """Update a specific camera setting"""
@@ -292,15 +310,28 @@ class ZeroLatencyPublisher:
 
                 # Apply the setting immediately to camera
                 if self.cap and self.cap.isOpened():
-                    if setting == 'brightness':
-                        self.cap.set(cv2.CAP_PROP_BRIGHTNESS, value)
-                    elif setting == 'contrast':
-                        self.cap.set(cv2.CAP_PROP_CONTRAST, value)
-                    elif setting == 'exposure':
-                        self.cap.set(cv2.CAP_PROP_EXPOSURE, value)
-                    elif setting == 'focus':
-                        self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-                        self.cap.set(cv2.CAP_PROP_FOCUS, value)
+                    try:
+                        if setting == 'brightness':
+                            result = self.cap.set(cv2.CAP_PROP_BRIGHTNESS, value)
+                            if not result:
+                                log.warning(f"Camera does not support brightness control")
+                        elif setting == 'contrast':
+                            result = self.cap.set(cv2.CAP_PROP_CONTRAST, value)
+                            if not result:
+                                log.warning(f"Camera does not support contrast control")
+                        elif setting == 'exposure':
+                            result = self.cap.set(cv2.CAP_PROP_EXPOSURE, value)
+                            if not result:
+                                log.warning(f"Camera does not support manual exposure control")
+                        elif setting == 'focus':
+                            self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+                            result = self.cap.set(cv2.CAP_PROP_FOCUS, value)
+                            if not result:
+                                log.warning(f"Camera does not support manual focus control")
+
+                        log.info(f"Successfully applied {setting} = {value}")
+                    except Exception as e:
+                        log.error(f"Error applying {setting}: {e}")
 
                 # Send updated status to Django
                 self.send_camera_status()
