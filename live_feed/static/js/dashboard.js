@@ -272,8 +272,8 @@ function handleCameraMessage(message) {
             handleConnectionStatus(message);
             break;
 
-        case 'camera_settings_update':
-            handleCameraSettings(message);
+        case 'camera_status':
+            handleCameraStatus(message);
             break;
 
         case 'system_metrics':
@@ -292,11 +292,6 @@ function handleCameraMessage(message) {
 // === Handle connection status messages ===
 function handleConnectionStatus(message) {
     if (typeof message.isConnected !== 'undefined') {
-        fpsCounter.tick();
-
-        const currentFps = fpsCounter.fps();
-        document.getElementById('fps-display').textContent = currentFps.toFixed(1);
-
         if (message.isConnected) {
             document.getElementById('health-value').textContent = '100';
         } else {
@@ -306,12 +301,18 @@ function handleConnectionStatus(message) {
     }
 }
 
-// Handle camera settings updates
-function handleCameraSettings(message) {
+// Handle camera status updates (FPS and brightness)
+function handleCameraStatus(message) {
+    // Update FPS display
+    if (typeof message.fps !== 'undefined') {
+        document.getElementById('fps-display').textContent = message.fps.toFixed(1);
+    }
+
+    // Update brightness if needed
     const brightnessSlider = document.getElementById('camera-brightness-slider');
     const brightnessValue = document.getElementById('camera-brightness-value');
 
-    if (brightnessSlider && message.brightness) {
+    if (brightnessSlider && typeof message.brightness !== 'undefined') {
         brightnessSlider.value = message.brightness;
         if (brightnessValue) {
             brightnessValue.textContent = message.brightness;

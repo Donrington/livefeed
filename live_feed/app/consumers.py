@@ -76,12 +76,10 @@ class CameraSettingsConsumer(AsyncWebsocketConsumer):
                 'type': 'camera_status_update',
                 'isConnected': cam_data.isConnected,
                 'brightness': cam_data.brightness,
-                'contrast': cam_data.contrast,
-                'exposure': cam_data.exposure,
-                'focus': cam_data.focus,
+                'fps': cam_data.fps,
             }
         )
-        log.info(f"Broadcast camera status: brightness={cam_data.brightness}, contrast={cam_data.contrast}")
+        log.info(f"Broadcast camera status: brightness={cam_data.brightness}, fps={cam_data.fps:.1f}")
 
     async def camera_status_update(self, event):
         """Handler for camera_status_update group messages - sends JSON to browser"""
@@ -91,9 +89,7 @@ class CameraSettingsConsumer(AsyncWebsocketConsumer):
                 'type': 'camera_status',
                 'isConnected': event['isConnected'],
                 'brightness': event['brightness'],
-                'contrast': event['contrast'],
-                'exposure': event['exposure'],
-                'focus': event['focus'],
+                'fps': event['fps'],
             }))
 
     async def send_setting_to_pi(self, setting: str, value: int):
