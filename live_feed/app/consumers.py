@@ -85,11 +85,18 @@ class CameraSettingsConsumer(AsyncWebsocketConsumer):
         """Handler for camera_status_update group messages - sends JSON to browser"""
         # Only send to browser clients, not to Pi
         if not self.is_pi_connection:
+            # Send camera status with FPS
             await self.send(text_data=json.dumps({
                 'type': 'camera_status',
                 'isConnected': event['isConnected'],
                 'brightness': event['brightness'],
                 'fps': event['fps'],
+            }))
+
+            # Also send connection_status for backward compatibility
+            await self.send(text_data=json.dumps({
+                'type': 'connection_status',
+                'isConnected': event['isConnected'],
             }))
 
     async def send_setting_to_pi(self, setting: str, value: int):
