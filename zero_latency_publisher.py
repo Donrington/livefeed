@@ -266,10 +266,24 @@ class ZeroLatencyPublisher:
 
         with self.settings_lock:
             try:
-                # Brightness only
+                # Check camera's brightness capabilities
+                min_brightness = self.cap.get(cv2.CAP_PROP_BRIGHTNESS)
+                log.info(f"Camera default brightness: {min_brightness}")
+
+                # Try to get brightness range (some cameras support this)
+                try:
+                    min_val = self.cap.get(cv2.CAP_PROP_BRIGHTNESS + 100)  # Some cameras use offset for min
+                    max_val = self.cap.get(cv2.CAP_PROP_BRIGHTNESS + 200)  # Some cameras use offset for max
+                    log.info(f"Brightness range (if supported): {min_val} to {max_val}")
+                except:
+                    log.info("Brightness range query not supported")
+
+                # Set brightness
                 result = self.cap.set(cv2.CAP_PROP_BRIGHTNESS, self.camera_settings['brightness'])
+                actual = self.cap.get(cv2.CAP_PROP_BRIGHTNESS)
+
                 if result:
-                    log.info(f"✓ Brightness set to {self.camera_settings['brightness']}")
+                    log.info(f"✓ Brightness set to {self.camera_settings['brightness']}, actual value: {actual}")
                 else:
                     log.warning("✗ Camera does not support brightness control")
 
@@ -281,14 +295,24 @@ class ZeroLatencyPublisher:
         with self.settings_lock:
             if setting == 'brightness' and setting in self.camera_settings:
                 self.camera_settings[setting] = value
-                log.info(f"Updated {setting} to {value}")
+                log.info(f"Requested brightness: {value}")
 
                 # Apply the setting immediately to camera
                 if self.cap and self.cap.isOpened():
                     try:
+                        # Get current brightness before setting
+                        current = self.cap.get(cv2.CAP_PROP_BRIGHTNESS)
+                        log.info(f"Current brightness before set: {current}")
+
+                        # Set new brightness
                         result = self.cap.set(cv2.CAP_PROP_BRIGHTNESS, value)
+
+                        # Read back what was actually set
+                        actual = self.cap.get(cv2.CAP_PROP_BRIGHTNESS)
+                        log.info(f"Brightness after set: requested={value}, actual={actual}, success={result}")
+
                         if result:
-                            log.info(f"✓ Applied brightness = {value}")
+                            log.info(f"✓ Brightness control applied")
                         else:
                             log.warning("✗ Camera does not support brightness control")
                     except Exception as e:
