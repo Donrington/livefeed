@@ -79,7 +79,6 @@ class CameraSettingsConsumer(AsyncWebsocketConsumer):
                 'fps': cam_data.fps,
             }
         )
-        log.info(f"Broadcast camera status: brightness={cam_data.brightness}, fps={cam_data.fps:.1f}")
 
     async def camera_status_update(self, event):
         """Handler for camera_status_update group messages - sends JSON to browser"""
