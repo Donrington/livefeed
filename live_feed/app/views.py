@@ -42,7 +42,8 @@ def analytics(request):
         context = {
             'page_css': 'css/analytics.css',
             'page_js': 'js/analytics.js',
-            'page_name': 'analytics'
+            'page_name': 'analytics',
+            'external_js': 'https://cdn.jsdelivr.net/npm/chart.js'  # Chart.js CDN
         }
         return render(request, 'partials/analytics_content.html', context)
     # Full page for initial load

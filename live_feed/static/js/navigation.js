@@ -193,9 +193,11 @@ async function loadPageResources() {
     const pageCss = metadata.dataset.css;
     const pageJs = metadata.dataset.js;
     const pageName = metadata.dataset.page;
+    const externalJs = metadata.dataset.externalJs;
 
     console.log(`🎨 Loading resources for: ${pageName}`);
     console.log(`  CSS: ${pageCss}`);
+    console.log(`  External JS: ${externalJs}`);
     console.log(`  JS: ${pageJs}`);
 
     // Load CSS
@@ -204,7 +206,13 @@ async function loadPageResources() {
         loadedCSS[pageCss] = true;
     }
 
-    // Load JavaScript
+    // Load external JavaScript (CDN libraries) first
+    if (externalJs && !loadedJS[externalJs]) {
+        await loadScriptFromUrl(externalJs);
+        loadedJS[externalJs] = true;
+    }
+
+    // Load page JavaScript after external dependencies
     if (pageJs && !loadedJS[pageJs]) {
         await loadScript(pageJs);
         loadedJS[pageJs] = true;
@@ -236,7 +244,7 @@ function loadCSS(cssPath) {
     });
 }
 
-// Dynamically load JavaScript file
+// Dynamically load JavaScript file from static folder
 function loadScript(jsPath) {
     return new Promise((resolve, reject) => {
         // Check if already loaded
@@ -254,6 +262,30 @@ function loadScript(jsPath) {
         };
         script.onerror = () => {
             console.error(`❌ Failed to load JS: ${jsPath}`);
+            reject();
+        };
+        document.body.appendChild(script);
+    });
+}
+
+// Dynamically load JavaScript file from full URL (CDN)
+function loadScriptFromUrl(url) {
+    return new Promise((resolve, reject) => {
+        // Check if already loaded
+        if (document.querySelector(`script[src="${url}"]`)) {
+            console.log(`External JS already loaded: ${url}`);
+            resolve();
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = () => {
+            console.log(`✅ External JS loaded: ${url}`);
+            resolve();
+        };
+        script.onerror = () => {
+            console.error(`❌ Failed to load external JS: ${url}`);
             reject();
         };
         document.body.appendChild(script);
