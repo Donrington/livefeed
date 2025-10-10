@@ -5,12 +5,12 @@ package tutorial;
 // Message sent FROM Pi TO Django (status updates)
 message CameraStatus {
   bool isConnected = 1;
-  int32 brightness = 2;      // Current brightness value
+  int32 brightness = 2;      // Current brightness value (0-100)
   float fps = 3;             // Current FPS
 }
 
 // Message sent FROM Django TO Pi (setting commands)
 message CameraSettingsCommand {
   string setting = 1;        // "brightness"
-  int32 value = 2;           // New value to set
+  int32 value = 2;           // New value to set (0-100, mapped to 0.0-1.0 on Pi)
 }
