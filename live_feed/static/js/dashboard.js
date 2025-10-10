@@ -292,11 +292,17 @@ function handleCameraMessage(message) {
 // === Handle connection status messages ===
 function handleConnectionStatus(message) {
     if (typeof message.isConnected !== 'undefined') {
+        const healthValue = document.getElementById('health-value');
+        if (!healthValue) {
+            // Element not on current page, skip update
+            return;
+        }
+
         if (message.isConnected) {
-            document.getElementById('health-value').textContent = '100';
+            healthValue.textContent = '100';
         } else {
             console.warn('⚠️ Camera feed interrupted!');
-            document.getElementById('health-value').textContent = '50';
+            healthValue.textContent = '50';
         }
     }
 }
@@ -305,7 +311,10 @@ function handleConnectionStatus(message) {
 function handleCameraStatus(message) {
     // Update FPS display
     if (typeof message.fps !== 'undefined') {
-        document.getElementById('fps-display').textContent = message.fps.toFixed(1);
+        const fpsDisplay = document.getElementById('fps-display');
+        if (fpsDisplay) {
+            fpsDisplay.textContent = message.fps.toFixed(1);
+        }
     }
 
     // Update brightness if needed
