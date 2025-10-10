@@ -138,12 +138,12 @@
                 <h3 class="text-sm font-semibold text-slate-100 mb-4">Camera Controls</h3>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm text-slate-400 mb-2">Brightness: <span id="brightness-val">0</span></label>
-                        <input type="range" id="brightness-slider" class="w-full" min="-130" max="130" value="0" oninput="updateCameraSetting('brightness', this.value)">
+                        <label class="block text-sm text-slate-400 mb-2">Brightness: <span id="brightness-val">50</span></label>
+                        <input type="range" id="brightness-slider" class="w-full" min="0" max="100" value="50" step="10" oninput="updateCameraSetting('brightness', this.value)">
                         <div class="flex justify-between text-xs text-slate-500 mt-1">
-                            <span>-130 (Dark)</span>
-                            <span>0 (Default)</span>
-                            <span>130 (Bright)</span>
+                            <span>0 (Dark)</span>
+                            <span>50 (Default)</span>
+                            <span>100 (Bright)</span>
                         </div>
                     </div>
                 </div>
