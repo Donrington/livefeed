@@ -1,0 +1,347 @@
+<!-- Main Settings Content -->
+<div class="col-span-12 md:col-span-9 lg:col-span-10">
+    <div class="main-content-scroll">
+    <!-- Tabs -->
+    <div class="mb-6">
+        <div class="flex space-x-1 border-b border-slate-700/50 overflow-x-auto">
+            <button class="tab-btn active" onclick="switchTab('stream')">
+                <i class="fas fa-video mr-2"></i>
+                <span class="hidden sm:inline">Stream</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('camera')">
+                <i class="fas fa-camera mr-2"></i>
+                <span class="hidden sm:inline">Camera</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('network')">
+                <i class="fas fa-network-wired mr-2"></i>
+                <span class="hidden sm:inline">Network</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('account')">
+                <i class="fas fa-user mr-2"></i>
+                <span class="hidden sm:inline">Account</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stream Settings Tab -->
+    <div id="stream-tab" class="tab-content active">
+        <div class="glass rounded-lg p-6">
+            <h2 class="text-xl font-bold text-slate-100 mb-6">Stream Settings</h2>
+
+            <!-- Stream Quality -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">Stream Quality</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">Resolution</label>
+                        <select class="select-field">
+                            <option value="640x480">640x480 (SD)</option>
+                            <option value="1280x720">1280x720 (HD)</option>
+                            <option value="1920x1080" selected>1920x1080 (FHD)</option>
+                            <option value="2560x1440">2560x1440 (QHD)</option>
+                            <option value="3840x2160">3840x2160 (4K)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">Frame Rate</label>
+                        <select class="select-field">
+                            <option value="15">15 fps</option>
+                            <option value="24">24 fps</option>
+                            <option value="30" selected>30 fps</option>
+                            <option value="60">60 fps</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">Bitrate (kbps)</label>
+                        <input type="number" class="input-field" value="2500" min="500" max="8000" step="100">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">Codec</label>
+                        <select class="select-field">
+                            <option value="h264" selected>H.264</option>
+                            <option value="h265">H.265 (HEVC)</option>
+                            <option value="vp9">VP9</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stream Preferences -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">Recording Preferences</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Auto-record streams</div>
+                            <div class="text-xs text-slate-500">Automatically save stream recordings</div>
+                        </div>
+                        <div class="switch" onclick="toggleSwitch(this)"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Low latency mode</div>
+                            <div class="text-xs text-slate-500">Reduce stream delay for real-time monitoring</div>
+                        </div>
+                        <div class="switch active" onclick="toggleSwitch(this)"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Adaptive bitrate</div>
+                            <div class="text-xs text-slate-500">Automatically adjust quality based on connection</div>
+                        </div>
+                        <div class="switch active" onclick="toggleSwitch(this)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stream Configuration -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">Stream Configuration</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">Stream Name</label>
+                        <input type="text" class="input-field" value="mystream" placeholder="Enter stream name">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">RTSP URL</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" class="input-field" value="rtsp://10.8.0.2:8554/mystream" readonly>
+                            <button class="btn btn-secondary">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end space-x-3 mt-6">
+                <button class="btn btn-secondary">Reset</button>
+                <button class="btn btn-primary">
+                    <i class="fas fa-save mr-2"></i>
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Settings Tab -->
+    <div id="camera-tab" class="tab-content">
+        <div class="glass rounded-lg p-6">
+            <h2 class="text-xl font-bold text-slate-100 mb-6">Camera Settings</h2>
+
+            <!-- Camera Controls -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">Camera Controls</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">Brightness: <span id="brightness-val">0</span></label>
+                        <input type="range" id="brightness-slider" class="w-full" min="-130" max="130" value="0" oninput="updateCameraSetting('brightness', this.value)">
+                        <div class="flex justify-between text-xs text-slate-500 mt-1">
+                            <span>-130 (Dark)</span>
+                            <span>0 (Default)</span>
+                            <span>130 (Bright)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera Features -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">Camera Features</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Auto white balance</div>
+                            <div class="text-xs text-slate-500">Automatically adjust color temperature</div>
+                        </div>
+                        <div class="switch active" onclick="toggleSwitch(this)"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Auto exposure</div>
+                            <div class="text-xs text-slate-500">Automatically adjust exposure settings</div>
+                        </div>
+                        <div class="switch active" onclick="toggleSwitch(this)"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Image stabilization</div>
+                            <div class="text-xs text-slate-500">Reduce camera shake and blur</div>
+                        </div>
+                        <div class="switch" onclick="toggleSwitch(this)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end space-x-3 mt-6">
+                <button class="btn btn-secondary">Reset</button>
+                <button class="btn btn-primary">
+                    <i class="fas fa-save mr-2"></i>
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network Settings Tab -->
+    <div id="network-tab" class="tab-content">
+        <div class="glass rounded-lg p-6">
+            <h2 class="text-xl font-bold text-slate-100 mb-6">Network Settings</h2>
+
+            <!-- Connection -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">Connection</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">Pi IP Address</label>
+                        <input type="text" class="input-field" value="10.8.0.2" placeholder="Enter Pi IP">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">Windows IP Address</label>
+                        <input type="text" class="input-field" value="10.8.0.1" placeholder="Enter Windows IP">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">MediaMTX Port</label>
+                        <input type="number" class="input-field" value="8554" placeholder="8554">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Protocol Settings -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">Protocol Settings</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Enable RTSP</div>
+                            <div class="text-xs text-slate-500">Real-Time Streaming Protocol</div>
+                        </div>
+                        <div class="switch active" onclick="toggleSwitch(this)"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Enable WebRTC</div>
+                            <div class="text-xs text-slate-500">Web Real-Time Communication</div>
+                        </div>
+                        <div class="switch active" onclick="toggleSwitch(this)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VPN Settings -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">VPN Settings</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">OpenVPN Status</div>
+                            <div class="text-xs text-green-400">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Connected
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary">
+                            <i class="fas fa-sync-alt mr-2"></i>
+                            Reconnect
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end space-x-3 mt-6">
+                <button class="btn btn-secondary">Reset</button>
+                <button class="btn btn-primary">
+                    <i class="fas fa-save mr-2"></i>
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Settings Tab -->
+    <div id="account-tab" class="tab-content">
+        <div class="glass rounded-lg p-6">
+            <h2 class="text-xl font-bold text-slate-100 mb-6">Account Settings</h2>
+
+            <!-- Profile -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">Profile</h3>
+                <div class="flex items-center space-x-4 mb-4">
+                    <div class="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 font-bold text-2xl">
+                        ST
+                    </div>
+                    <button class="btn btn-secondary">
+                        <i class="fas fa-upload mr-2"></i>
+                        Change Avatar
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">Display Name</label>
+                        <input type="text" class="input-field" value="Security Admin" placeholder="Enter display name">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-2">Email</label>
+                        <input type="email" class="input-field" value="admin@surveillance.com" placeholder="Enter email">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">Notifications</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Email notifications</div>
+                            <div class="text-xs text-slate-500">Receive alerts via email</div>
+                        </div>
+                        <div class="switch active" onclick="toggleSwitch(this)"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Desktop notifications</div>
+                            <div class="text-xs text-slate-500">Show desktop alerts</div>
+                        </div>
+                        <div class="switch active" onclick="toggleSwitch(this)"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-200">Motion detection alerts</div>
+                            <div class="text-xs text-slate-500">Notify when motion is detected</div>
+                        </div>
+                        <div class="switch active" onclick="toggleSwitch(this)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security -->
+            <div class="settings-section">
+                <h3 class="text-sm font-semibold text-slate-100 mb-4">Security</h3>
+                <div class="space-y-4">
+                    <button class="btn btn-secondary w-full justify-start">
+                        <i class="fas fa-key mr-2"></i>
+                        Change Password
+                    </button>
+                    <button class="btn btn-secondary w-full justify-start">
+                        <i class="fas fa-shield-alt mr-2"></i>
+                        Two-Factor Authentication
+                    </button>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end space-x-3 mt-6">
+                <button class="btn btn-secondary">Cancel</button>
+                <button class="btn btn-primary">
+                    <i class="fas fa-save mr-2"></i>
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+    </div>
+</div>

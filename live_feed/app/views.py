@@ -8,22 +8,38 @@ import socket
 
 def live_feed(request):
     """Main view to serve the streaming dashboard"""
-    # Using the new modular template with WebSocket integration
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Return only content partial for AJAX
+        return render(request, 'partials/dashboard_content.html')
+    # Full page for initial load
     return render(request, 'streaming_dashboard.html')
 
 def settings(request):
     """Main view to serve the settings dashboard"""
-    # Using the new modular template
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Return only content partial for AJAX
+        return render(request, 'partials/settings_content.html')
+    # Full page for initial load
     return render(request, 'settings.html')
 
 def analytics(request):
     """Sub view to serve the analytics page"""
-    # Using the new modular template
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Return only content partial for AJAX
+        return render(request, 'partials/analytics_content.html')
+    # Full page for initial load
     return render(request, 'analytics.html')
 
 def recordings(request):
     """View to serve the Recordings page"""
-    # Using the new modular template
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Return only content partial for AJAX
+        return render(request, 'partials/recordings_content.html')
+    # Full page for initial load
     return render(request, 'recordings.html')
 
 def stream_status(request):

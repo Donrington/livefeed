@@ -1,0 +1,208 @@
+<!-- Main Analytics Content -->
+<div class="col-span-12 md:col-span-9 lg:col-span-10">
+    <div class="main-content-scroll">
+    <!-- Time Period Filter -->
+    <div class="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-100 mb-1">System Analytics</h2>
+            <p class="text-slate-400 text-sm">Monitor camera system performance and health</p>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button class="btn glass text-slate-300 hover:bg-slate-800/50">
+                <i class="fas fa-calendar mr-2"></i>
+                <span class="hidden sm:inline">Last 7 Days</span>
+                <span class="sm:hidden">7d</span>
+            </button>
+            <button class="btn glass text-slate-300 hover:bg-slate-800/50">
+                <i class="fas fa-download"></i>
+                <span class="hidden sm:inline ml-2">Export</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- System Metrics Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Uptime -->
+        <div class="glass rounded-lg p-6 stat-card relative overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div class="text-sm text-slate-400">System Uptime</div>
+                <div class="w-12 h-12 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                    <i class="fas fa-server text-cyan-400 text-xl"></i>
+                </div>
+            </div>
+            <div class="text-3xl font-bold text-slate-100 mb-2">99.8%</div>
+            <div class="flex items-center text-sm">
+                <span class="text-green-400">
+                    <i class="fas fa-check-circle mr-1"></i>
+                    Healthy
+                </span>
+            </div>
+        </div>
+
+        <!-- Storage Used -->
+        <div class="glass rounded-lg p-6 stat-card relative overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div class="text-sm text-slate-400">Storage Used</div>
+                <div class="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <i class="fas fa-hdd text-purple-400 text-xl"></i>
+                </div>
+            </div>
+            <div class="text-3xl font-bold text-slate-100 mb-2">842 GB</div>
+            <div class="flex items-center text-sm">
+                <span class="text-slate-400">
+                    of 2 TB total
+                </span>
+            </div>
+        </div>
+
+        <!-- Recording Time -->
+        <div class="glass rounded-lg p-6 stat-card relative overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div class="text-sm text-slate-400">Recording Time</div>
+                <div class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <i class="fas fa-clock text-blue-400 text-xl"></i>
+                </div>
+            </div>
+            <div class="text-3xl font-bold text-slate-100 mb-2">1,245h</div>
+            <div class="flex items-center text-sm">
+                <span class="text-green-400">
+                    <i class="fas fa-arrow-up mr-1"></i>
+                    +15%
+                </span>
+                <span class="text-slate-500 ml-2">vs last week</span>
+            </div>
+        </div>
+
+        <!-- Active Cameras -->
+        <div class="glass rounded-lg p-6 stat-card relative overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div class="text-sm text-slate-400">Active Cameras</div>
+                <div class="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
+                    <i class="fas fa-video text-green-400 text-xl"></i>
+                </div>
+            </div>
+            <div class="text-3xl font-bold text-slate-100 mb-2">4/4</div>
+            <div class="flex items-center text-sm">
+                <span class="text-green-400">
+                    <i class="fas fa-check-circle mr-1"></i>
+                    All online
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- System Performance Chart -->
+        <div class="glass rounded-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-slate-100">System Performance</h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Network Usage Chart -->
+        <div class="glass rounded-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-slate-100">Network Usage</h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="networkChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Metrics -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Camera Status -->
+        <div class="glass rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-slate-100 mb-4">Camera Status</h3>
+            <div class="space-y-4">
+                {% for i in "1234" %}
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-slate-400">Camera {{ i }}</span>
+                        <span class="text-sm font-semibold text-green-400">Online</span>
+                    </div>
+                    <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-green-500 to-emerald-500" style="width: {% cycle '100' '98' '95' '100' %}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- System Resources -->
+        <div class="glass rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-slate-100 mb-4">System Resources</h3>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-slate-400">CPU Usage</span>
+                        <span class="text-sm font-semibold text-slate-200">45%</span>
+                    </div>
+                    <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-cyan-500 to-blue-500" style="width: 45%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-slate-400">Memory</span>
+                        <span class="text-sm font-semibold text-slate-200">62%</span>
+                    </div>
+                    <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-purple-500 to-pink-500" style="width: 62%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-slate-400">Disk I/O</span>
+                        <span class="text-sm font-semibold text-slate-200">28%</span>
+                    </div>
+                    <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500" style="width: 28%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Events -->
+        <div class="glass rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-slate-100 mb-4">Recent Events</h3>
+            <div class="space-y-3">
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-play text-green-400 text-xs"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-slate-200">Recording started</div>
+                        <div class="text-xs text-slate-500">Camera 1 • 2 hours ago</div>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-check text-cyan-400 text-xs"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-slate-200">System health check passed</div>
+                        <div class="text-xs text-slate-500">5 hours ago</div>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-save text-amber-400 text-xs"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-slate-200">Backup completed</div>
+                        <div class="text-xs text-slate-500">8 hours ago</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</div>
+{% endblock %}
+
