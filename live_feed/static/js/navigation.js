@@ -2,8 +2,10 @@
    AJAX NAVIGATION - Prevents page reload, keeps camera connected
    ============================================================================ */
 
-// Track current page
+// Track current page and loaded resources
 let currentPage = 'dashboard';
+let loadedCSS = {};
+let loadedJS = {};
 
 // Initialize navigation
 document.addEventListener('DOMContentLoaded', () => {
@@ -70,6 +72,10 @@ async function loadPage(url, pageName, clickedLink) {
 
         // Insert new content after sidebar
         sidebar.insertAdjacentHTML('afterend', html);
+
+        // Load page-specific CSS and JS
+        await loadPageResources();
+
         gridContainer.style.opacity = '1';
 
         // Update active nav link
@@ -175,3 +181,81 @@ window.addEventListener('popstate', (event) => {
         }
     }
 });
+
+// Load page-specific CSS and JavaScript dynamically
+async function loadPageResources() {
+    const metadata = document.getElementById('page-metadata');
+    if (!metadata) {
+        console.log('No page metadata found');
+        return;
+    }
+
+    const pageCss = metadata.dataset.css;
+    const pageJs = metadata.dataset.js;
+    const pageName = metadata.dataset.page;
+
+    console.log(`🎨 Loading resources for: ${pageName}`);
+    console.log(`  CSS: ${pageCss}`);
+    console.log(`  JS: ${pageJs}`);
+
+    // Load CSS
+    if (pageCss && !loadedCSS[pageCss]) {
+        await loadCSS(pageCss);
+        loadedCSS[pageCss] = true;
+    }
+
+    // Load JavaScript
+    if (pageJs && !loadedJS[pageJs]) {
+        await loadScript(pageJs);
+        loadedJS[pageJs] = true;
+    }
+}
+
+// Dynamically load CSS file
+function loadCSS(cssPath) {
+    return new Promise((resolve, reject) => {
+        // Check if already loaded
+        if (document.querySelector(`link[href*="${cssPath}"]`)) {
+            console.log(`CSS already loaded: ${cssPath}`);
+            resolve();
+            return;
+        }
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = `/static/${cssPath}`;
+        link.onload = () => {
+            console.log(`✅ CSS loaded: ${cssPath}`);
+            resolve();
+        };
+        link.onerror = () => {
+            console.error(`❌ Failed to load CSS: ${cssPath}`);
+            reject();
+        };
+        document.head.appendChild(link);
+    });
+}
+
+// Dynamically load JavaScript file
+function loadScript(jsPath) {
+    return new Promise((resolve, reject) => {
+        // Check if already loaded
+        if (document.querySelector(`script[src*="${jsPath}"]`)) {
+            console.log(`JS already loaded: ${jsPath}`);
+            resolve();
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = `/static/${jsPath}`;
+        script.onload = () => {
+            console.log(`✅ JS loaded: ${jsPath}`);
+            resolve();
+        };
+        script.onerror = () => {
+            console.error(`❌ Failed to load JS: ${jsPath}`);
+            reject();
+        };
+        document.body.appendChild(script);
+    });
+}
