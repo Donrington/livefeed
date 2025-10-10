@@ -1,0 +1,270 @@
+{% load static %}
+<!-- Page Metadata -->
+<div id="page-metadata" data-css="{{ page_css }}" data-js="{{ page_js }}" data-page="{{ page_name }}" style="display:none;"></div>
+<!-- Main Dashboard -->
+<div class="col-span-12 md:col-span-9 lg:col-span-7">
+    <div class="main-content-scroll">
+    <!-- Camera View Section -->
+    <section id="cameras-section">
+        <div class="glass rounded-lg mb-6">
+            <div class="border-b border-slate-700/50 p-4">
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                    <h2 class="text-slate-100 flex items-center font-semibold">
+                        <i class="fas fa-video text-cyan-500 mr-2"></i>
+                        Live Camera Feed
+                    </h2>
+
+                    <!-- Camera Selection -->
+                    <div class="flex items-center gap-2 camera-selection-buttons">
+                        <button onclick="selectCamera('all')" class="btn btn-primary active" id="btn-camera-all">
+                            <i class="fas fa-th mr-1"></i>
+                            <span class="hidden sm:inline">All Cameras</span>
+                            <span class="sm:hidden">All</span>
+                        </button>
+                        <button onclick="selectCamera(1)" class="btn btn-primary" id="btn-camera-1">
+                            <span class="hidden sm:inline">Camera</span> 1
+                        </button>
+                        <button onclick="selectCamera(2)" class="btn btn-primary" id="btn-camera-2">
+                            <span class="hidden sm:inline">Camera</span> 2
+                        </button>
+                        <button onclick="selectCamera(3)" class="btn btn-primary" id="btn-camera-3">
+                            <span class="hidden sm:inline">Camera</span> 3
+                        </button>
+                        <button onclick="selectCamera(4)" class="btn btn-primary" id="btn-camera-4">
+                            <span class="hidden sm:inline">Camera</span> 4
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <!-- Multi-camera grid (shown by default) -->
+                <div id="camera-grid-all" class="camera-grid">
+                    {% for i in "1234" %}
+                    <div class="camera-feed">
+                        <div class="camera-label">Camera {{ i }}</div>
+                        <video id="video-{{ i }}" class="hidden" autoplay muted></video>
+                        <div class="flex items-center justify-center h-full text-slate-500">
+                            <div class="text-center">
+                                <i class="fas fa-video-slash text-4xl mb-2"></i>
+                                <p class="text-sm">No Signal</p>
+                            </div>
+                        </div>
+                        <div class="connect-overlay" id="overlay-{{ i }}" onclick="connectCamera({{ i }}, event)">
+                            <div class="connect-btn-overlay">
+                                <i class="fas fa-play"></i>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Single camera view (hidden by default) -->
+                <div id="camera-grid-single" class="camera-grid single hidden">
+                    <div class="camera-feed">
+                        <div class="camera-label" id="single-camera-label">Camera 1</div>
+                        <video id="video-single" class="hidden" autoplay muted controls></video>
+                        <div class="flex items-center justify-center h-full text-slate-500">
+                            <div class="text-center">
+                                <i class="fas fa-video-slash text-4xl mb-2"></i>
+                                <p class="text-sm">No Signal</p>
+                            </div>
+                        </div>
+                        <div class="connect-overlay" id="overlay-single" onclick="connectSingleCamera(event)">
+                            <div class="connect-btn-overlay">
+                                <i class="fas fa-play"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Metrics -->
+        <div class="glass rounded-lg">
+            <div class="border-b border-slate-700/50 p-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-slate-100 font-semibold">System Metrics</h3>
+                    <button onclick="toggleMetrics()" class="btn btn-ghost p-2" id="metrics-toggle-btn" title="Toggle metrics">
+                        <i class="fas fa-chevron-up" id="metrics-toggle-icon"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="metrics-content" id="metrics-content">
+                <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Connection Health -->
+                    <div class="bg-slate-800/50 rounded-lg border border-blue-500/30 p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-sm text-slate-400">Connection Health</div>
+                            <i class="fas fa-wifi text-blue-500"></i>
+                        </div>
+                        <div class="text-2xl font-bold mb-1 text-slate-100">
+                            <span id="health-value">0</span>%
+                        </div>
+                    </div>
+
+                    <!-- FPS -->
+                    <div class="bg-slate-800/50 rounded-lg border border-purple-500/30 p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-sm text-slate-400">Frame Rate</div>
+                            <i class="fas fa-video text-purple-500"></i>
+                        </div>
+                        <div class="text-2xl font-bold mb-1 text-slate-100">
+                            <span id="fps-display">0</span> <span class="text-sm">fps</span>
+                        </div>
+                    </div>
+
+                    <!-- Resolution -->
+                    <div class="bg-slate-800/50 rounded-lg border border-cyan-500/30 p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-sm text-slate-400">Resolution</div>
+                            <i class="fas fa-expand text-cyan-500"></i>
+                        </div>
+                        <div class="text-lg font-bold mb-1 text-slate-100">
+                            <span id="resolution-display">1920x1080</span>
+                        </div>
+                    </div>
+
+                    <!-- CPU Usage -->
+                    <div class="bg-slate-800/50 rounded-lg border border-amber-500/30 p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-sm text-slate-400">CPU Usage</div>
+                            <i class="fas fa-microchip text-amber-500"></i>
+                        </div>
+                        <div class="text-2xl font-bold mb-1 text-slate-100">
+                            <span id="cpu-usage">0</span>%
+                        </div>
+                        <div class="progress mt-2">
+                            <div id="cpu-bar" class="progress-bar" style="width: 0%; background: linear-gradient(to right, #f59e0b, #d97706);"></div>
+                        </div>
+                    </div>
+
+                    <!-- Memory Usage -->
+                    <div class="bg-slate-800/50 rounded-lg border border-green-500/30 p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-sm text-slate-400">Memory</div>
+                            <i class="fas fa-memory text-green-500"></i>
+                        </div>
+                        <div class="text-2xl font-bold mb-1 text-slate-100">
+                            <span id="memory-usage">0</span>%
+                        </div>
+                        <div class="text-xs text-slate-500 mt-1">
+                            <span id="memory-used">0 MB</span> / <span id="memory-total">0 MB</span>
+                        </div>
+                    </div>
+
+                    <!-- Network Stats -->
+                    <div class="bg-slate-800/50 rounded-lg border border-pink-500/30 p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-sm text-slate-400">Network</div>
+                            <i class="fas fa-network-wired text-pink-500"></i>
+                        </div>
+                        <div class="text-xs text-slate-500 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span>Upload:</span>
+                                <span class="text-pink-400 font-mono" id="network-upload">0 Mbps</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>Latency:</span>
+                                <span class="text-cyan-400 font-mono" id="network-latency">0 ms</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Recordings Section (hidden by default) -->
+    <section id="recordings-section" class="hidden">
+        <div class="glass rounded-lg">
+            <div class="border-b border-slate-700/50 p-4">
+                <h2 class="text-slate-100 flex items-center font-semibold">
+                    <i class="fas fa-folder text-cyan-500 mr-2"></i>
+                    Recorded Videos
+                </h2>
+            </div>
+            <div class="p-6">
+                <!-- Video Player -->
+                <div class="mb-6">
+                    <div class="camera-feed single">
+                        <video id="recording-player" controls class="w-full rounded-lg" style="max-height: 500px;">
+                            <source src="" type="video/mp4">
+                            Your browser does not support video playback.
+                        </video>
+                    </div>
+                </div>
+
+                <!-- Recordings List -->
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                    <div class="text-sm text-slate-400 mb-3">Recent Recordings</div>
+
+                    <!-- Sample recordings -->
+                    <div class="recording-item" onclick="playRecording('recording1.mp4', 'Camera 1 - 2025-10-06 14:30')">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-play-circle text-cyan-500 text-xl"></i>
+                                <div>
+                                    <div class="text-sm font-medium text-slate-200">Camera 1 - 2025-10-06 14:30</div>
+                                    <div class="text-xs text-slate-500">Duration: 1:45:23 • Size: 2.3 GB</div>
+                                </div>
+                            </div>
+                            <i class="fas fa-download text-slate-500 hover:text-cyan-500"></i>
+                        </div>
+                    </div>
+
+                    <div class="text-center py-8 text-slate-500">
+                        <i class="fas fa-folder-open text-4xl mb-2 opacity-50"></i>
+                        <p class="text-sm">No more recordings</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    </div>
+</div>
+
+<!-- Right sidebar - Camera Controls -->
+<div class="col-span-12 lg:col-span-3 right-sidebar">
+    <div class="space-y-6">
+        <!-- Connection Control -->
+        <div class="glass rounded-lg">
+            <div class="p-4 border-b border-slate-700/50">
+                <h3 class="text-slate-100 text-base font-medium">Connection</h3>
+            </div>
+            <div class="p-4">
+                <div class="flex gap-2 mb-3">
+                    <button id="connect-btn" onclick="handleConnect()" class="btn btn-primary flex-1">
+                        <i class="fas fa-plug mr-2"></i>
+                        Connect
+                    </button>
+                    <button id="stop-btn" onclick="handleStop()" class="btn bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fas fa-stop mr-2"></i>
+                        Stop
+                    </button>
+                </div>
+                <div class="text-xs text-slate-500 text-center">
+                    Status: <span id="status-text" class="text-slate-400 font-mono">NOT CONNECTED</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recording Control -->
+        <div class="glass rounded-lg">
+            <div class="p-4 border-b border-slate-700/50">
+                <h3 class="text-slate-100 text-base font-medium">Recording</h3>
+            </div>
+            <div class="p-4">
+                <button id="record-btn" onclick="toggleRecording()" class="btn btn-primary w-full mb-3" disabled>
+                    <i class="fas fa-record-vinyl mr-2 text-red-500"></i>
+                    Start Recording
+                </button>
+                <div class="text-xs text-slate-500 text-center">
+                    <span id="recording-status">Ready to record</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

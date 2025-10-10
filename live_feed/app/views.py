@@ -8,22 +8,58 @@ import socket
 
 def live_feed(request):
     """Main view to serve the streaming dashboard"""
-    # Using the new modular template with WebSocket integration
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Return only content partial for AJAX with metadata
+        context = {
+            'page_css': 'css/dashboard.css',
+            'page_js': 'js/dashboard.js',
+            'page_name': 'dashboard'
+        }
+        return render(request, 'partials/dashboard_content.html', context)
+    # Full page for initial load
     return render(request, 'streaming_dashboard.html')
 
 def settings(request):
     """Main view to serve the settings dashboard"""
-    # Using the new modular template
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Return only content partial for AJAX with metadata
+        context = {
+            'page_css': 'css/settings.css',
+            'page_js': 'js/settings.js',
+            'page_name': 'settings'
+        }
+        return render(request, 'partials/settings_content.html', context)
+    # Full page for initial load
     return render(request, 'settings.html')
 
 def analytics(request):
     """Sub view to serve the analytics page"""
-    # Using the new modular template
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Return only content partial for AJAX with metadata
+        context = {
+            'page_css': 'css/analytics.css',
+            'page_js': 'js/analytics.js',
+            'page_name': 'analytics'
+        }
+        return render(request, 'partials/analytics_content.html', context)
+    # Full page for initial load
     return render(request, 'analytics.html')
 
 def recordings(request):
     """View to serve the Recordings page"""
-    # Using the new modular template
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Return only content partial for AJAX with metadata
+        context = {
+            'page_css': 'css/live_stream.css',
+            'page_js': None,  # Recordings has inline JS
+            'page_name': 'recordings'
+        }
+        return render(request, 'partials/recordings_content.html', context)
+    # Full page for initial load
     return render(request, 'recordings.html')
 
 def stream_status(request):

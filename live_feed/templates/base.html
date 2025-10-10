@@ -58,13 +58,16 @@
             <!-- Sidebar -->
             {% include 'includes/sidebar.html' %}
 
-            <!-- Main Content Area -->
+            <!-- Main Content Area - Will be dynamically loaded -->
             {% block content %}{% endblock %}
         </div>
     </div>
 
     <!-- Base JavaScript -->
     <script src="{% static 'js/base.js' %}"></script>
+
+    <!-- AJAX Navigation -->
+    <script src="{% static 'js/navigation.js' %}"></script>
 
     <!-- Page-specific JavaScript -->
     {% block javascript %}{% endblock %}
