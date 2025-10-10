@@ -37,9 +37,16 @@ async function loadPage(url, pageName, clickedLink) {
     console.log(`📄 Loading page: ${pageName}`);
 
     try {
+        // Find the grid container and sidebar
+        const gridContainer = document.querySelector('.grid.grid-cols-12');
+        const sidebar = document.getElementById('sidebar');
+
+        if (!gridContainer || !sidebar) {
+            throw new Error('Required DOM elements not found');
+        }
+
         // Show loading indicator
-        const mainContent = document.getElementById('main-content');
-        mainContent.style.opacity = '0.5';
+        gridContainer.style.opacity = '0.5';
 
         // Fetch page content with AJAX header
         const response = await fetch(url, {
@@ -54,9 +61,16 @@ async function loadPage(url, pageName, clickedLink) {
 
         const html = await response.text();
 
-        // Update content
-        mainContent.innerHTML = html;
-        mainContent.style.opacity = '1';
+        // Remove all children except sidebar
+        Array.from(gridContainer.children).forEach(child => {
+            if (child.id !== 'sidebar') {
+                child.remove();
+            }
+        });
+
+        // Insert new content after sidebar
+        sidebar.insertAdjacentHTML('afterend', html);
+        gridContainer.style.opacity = '1';
 
         // Update active nav link
         updateActiveNav(clickedLink);
@@ -76,19 +90,31 @@ async function loadPage(url, pageName, clickedLink) {
         console.error(`❌ Error loading page: ${error}`);
 
         // Show error message
-        document.getElementById('main-content').innerHTML = `
-            <div class="col-span-12 md:col-span-9 lg:col-span-10">
-                <div class="glass rounded-lg p-6">
-                    <h2 class="text-xl font-bold text-red-500 mb-4">Error Loading Page</h2>
-                    <p class="text-slate-400">${error.message}</p>
-                    <button onclick="location.reload()" class="btn btn-primary mt-4">
-                        <i class="fas fa-sync-alt mr-2"></i>
-                        Reload Page
-                    </button>
+        const gridContainer = document.querySelector('.grid.grid-cols-12');
+        const sidebar = document.getElementById('sidebar');
+
+        if (gridContainer && sidebar) {
+            // Remove all except sidebar
+            Array.from(gridContainer.children).forEach(child => {
+                if (child.id !== 'sidebar') {
+                    child.remove();
+                }
+            });
+
+            sidebar.insertAdjacentHTML('afterend', `
+                <div class="col-span-12 md:col-span-9 lg:col-span-10">
+                    <div class="glass rounded-lg p-6">
+                        <h2 class="text-xl font-bold text-red-500 mb-4">Error Loading Page</h2>
+                        <p class="text-slate-400">${error.message}</p>
+                        <button onclick="location.reload()" class="btn btn-primary mt-4">
+                            <i class="fas fa-sync-alt mr-2"></i>
+                            Reload Page
+                        </button>
+                    </div>
                 </div>
-            </div>
-        `;
-        document.getElementById('main-content').style.opacity = '1';
+            `);
+            gridContainer.style.opacity = '1';
+        }
     }
 }
 
